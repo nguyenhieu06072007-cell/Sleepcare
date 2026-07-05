@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SleepWise - Theo dõi, phân tích và cải thiện chất lượng giấc ngủ với công cụ cá nhân hóa.">
+    <title>SleepWise – Smart Sleep Improvement Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        night: '#0F172A',
+                        purpleSoft: '#7C3AED',
+                        blueSoft: '#38BDF8',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0% { transform: translateY(0px) translateX(0px); }
+            50% { transform: translateY(-10px) translateX(5px); }
+            100% { transform: translateY(0px) translateX(0px); }
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: float 4s ease-in-out infinite;
+        }
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        body {
+            background-color: #0F172A;
+            color: #FFFFFF;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0F172A; }
+        ::-webkit-scrollbar-thumb { background: #38BDF8; border-radius: 3px; }
+
+        /* Trợ năng: Focus rõ ràng cho bàn phím */
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+            outline: 2px solid #38BDF8;
+            outline-offset: 2px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .star { animation: none; }
+        }
+
+        .score-donut {
+            width: 96px; height: 96px; border-radius: 9999px;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        .score-donut::before {
+            content: "";
+            position: absolute; inset: 8px;
+            background: #0F172A;
+            border-radius: 9999px;
+        }
+        .score-donut span { position: relative; z-index: 1; font-weight: 700; }
+
+        .sound-card.active { border-color: #38BDF8; box-shadow: 0 0 0 1px #38BDF8; }
+
+        .toast-wrap { position: fixed; bottom: 1rem; right: 1rem; z-index: 100; display: flex; flex-direction: column; gap: .5rem; }
+        .toast { animation: toastIn .25s ease-out; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(8px);} to { opacity:1; transform: translateY(0);} }
+    </style>
+</head>
+<body class="font-sans antialiased">
+
+    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden opacity-40" aria-hidden="true">
+        <div class="star w-1 h-1 top-12 left-1/4" style="animation-delay: 0s;"></div>
+        <div class="star w-1.5 h-1.5 top-1/4 left-1/3" style="animation-delay: 1s;"></div>
+        <div class="star w-1 h-1 top-1/3 right-1/4" style="animation-delay: 1.5s;"></div>
+        <div class="star w-2 h-2 bottom-1/4 left-1/5" style="animation-delay: 2s;"></div>
+        <div class="star w-1 h-1 bottom-1/3 right-1/3" style="animation-delay: 0.5s;"></div>
+    </div>
+
+    <div id="toast-wrap" class="toast-wrap" aria-live="polite"></div>
+
+    <div class="relative z-10 min-h-screen flex flex-col">
+
+        <nav class="glass sticky top-0 z-50 border-b border-slate-800 px-4 md:px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer select-none focus:outline-none" 
+                 tabindex="0" 
+                 role="button"
+                 aria-label="Về trang chủ SleepWise"
+                 onclick="switchTab('landing')" 
+                 onkeydown="if(event.key === 'Enter' || event.key === ' ') { switchTab('landing'); event.preventDefault(); }">
+                <span class="text-2xl" aria-hidden="true">🌙</span>
+                <span class="text-xl font-bold bg-gradient-to-r from-blueSoft to-purpleSoft bg-clip-text text-transparent">SleepWise</span>
+            </div>
+
+            <div id="nav-menu-items" class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-300">
+                <button type="button" class="hover:text-blueSoft transition py-1 px-2" onclick="switchTab('dashboard')"><i class="fa-solid fa-chart-pie mr-1"></i> Dashboard</button>
+                <button type="button" class="hover:text-blueSoft transition py-1 px-2" onclick="switchTab('tracker')"><i class="fa-solid fa-bed mr-1"></i> Nhật ký</button>
+                <button type="button" class="hover:text-blueSoft transition py-1 px-2" onclick="switchTab('ai-analyzer')"><i class="fa-solid fa-brain mr-1"></i> AI Analyzer</button>
+                <button type="button" class="hover:text-blueSoft transition py-1 px-2" onclick="switchTab('sounds')"><i class="fa-solid fa-music mr-1"></i> Âm thanh</button>
+                <button type="button" class="hover:text-blueSoft transition py-1 px-2" onclick="switchTab('community')"><i class="fa-solid fa-users mr-1"></i> Cộng đồng</button>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span id="user-profile-btn" class="hidden text-sm text-slate-300 flex items-center gap-2 cursor-pointer focus:outline-none" tabindex="0" role="button" aria-label="Xem hồ sơ cá nhân" onclick="switchTab('profile')" onkeydown="if(event.key==='Enter'||event.key===' '){switchTab('profile');event.preventDefault();}">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" class="w-8 h-8 rounded-full border border-blueSoft" alt="Ảnh đại diện người dùng">
+                    <span class="hidden sm:inline" id="nav-user-name">Người dùng</span>
+                </span>
+                <button id="nav-auth-btn" type="button" class="bg-gradient-to-r from-purpleSoft to-blueSoft text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-lg hover:opacity-90 transition" onclick="showAuthScreen('login')"><i class="fa-solid fa-right-to-bracket mr-1.5"></i>Đăng nhập</button>
+
+                <button id="mobile-menu-btn" type="button" class="md:hidden hidden text-slate-300 text-xl px-2" aria-label="Mở menu điều hướng" onclick="toggleMobileMenu()">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div id="mobile-menu" class="hidden md:hidden glass border-b border-slate-800 flex flex-col text-sm font-medium text-slate-300 sticky top-[65px] z-40">
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('dashboard'); toggleMobileMenu()"><i class="fa-solid fa-chart-pie mr-2"></i> Dashboard</button>
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('tracker'); toggleMobileMenu()"><i class="fa-solid fa-bed mr-2"></i> Nhật ký</button>
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('ai-analyzer'); toggleMobileMenu()"><i class="fa-solid fa-brain mr-2"></i> AI Analyzer</button>
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('sounds'); toggleMobileMenu()"><i class="fa-solid fa-music mr-2"></i> Âm thanh</button>
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('community'); toggleMobileMenu()"><i class="fa-solid fa-users mr-2"></i> Cộng đồng</button>
+            <button type="button" class="text-left px-6 py-3 hover:text-blueSoft hover:bg-slate-800/40" onclick="switchTab('profile'); toggleMobileMenu()"><i class="fa-solid fa-user mr-2"></i> Hồ sơ</button>
+        </div>
+
+        <main class="flex-grow p-4 md:p-8 max-w-7xl w-full mx-auto">
+
+            <section id="tab-landing" class="tab-content py-12 md:py-20 space-y-24">
+                <div class="text-center space-y-6 max-w-3xl mx-auto">
+                    <h1 class="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+                        Ngủ ngon hơn mỗi ngày cùng <span class="bg-gradient-to-r from-blueSoft via-purpleSoft to-pink-500 bg-clip-text text-transparent">SleepWise</span>
+                    </h1>
+                    <p class="text-slate-400 text-lg md:text-xl">
+                        Theo dõi, phân tích và cải thiện chất lượng giấc ngủ bằng công cụ cá nhân hóa sâu sắc. Giao diện tối ưu bảo vệ thị lực ban đêm.
+                    </p>
+                    <div class="flex justify-center gap-4 pt-4">
+                        <button type="button" class="bg-blueSoft text-slate-900 font-bold px-6 py-3 rounded-xl shadow-lg shadow-blue-500/20 hover:scale-105 transition" onclick="checkAuthAndRedirect('dashboard')"><i class="fa-solid fa-rocket mr-2"></i>Bắt đầu ngay</button>
+                        <button type="button" class="border border-slate-700 hover:border-slate-500 px-6 py-3 rounded-xl font-medium transition" onclick="showAuthScreen('register')"><i class="fa-solid fa-gift mr-2"></i>Dùng thử miễn phí</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="glass p-6 rounded-2xl border border-slate-800 hover:border-blueSoft/50 transition duration-300">
+                        <div class="text-blueSoft text-3xl mb-4"><i class="fa-solid fa-clock-history"></i></div>
+                        <h3 class="text-lg font-bold mb-2">Theo dõi giấc ngủ</h3>
+                        <p class="text-slate-400 text-sm">Ghi nhận chính xác mốc giờ ngủ, giờ thức dậy, tự động chuyển đổi thời lượng.</p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-slate-800 hover:border-purpleSoft/50 transition duration-300">
+                        <div class="text-purpleSoft text-3xl mb-4"><i class="fa-solid fa-robot"></i></div>
+                        <h3 class="text-lg font-bold mb-2">Phân tích thông minh</h3>
+                        <p class="text-slate-400 text-sm">Chấm điểm chất lượng, bóc tách nguyên nhân gây khó ngủ và đưa giải pháp tức thì.</p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-slate-800 hover:border-pink-500/50 transition duration-300">
+                        <div class="text-pink-500 text-3xl mb-4"><i class="fa-solid fa-bell"></i></div>
+                        <h3 class="text-lg font-bold mb-2">Nhắc nhở đi ngủ</h3>
+                        <p class="text-slate-400 text-sm">Đặt giờ mục tiêu, nhận thông báo trình duyệt đúng lúc để duy trì nhịp sinh học.</p>
+                    </div>
+                    <div class="glass p-6 rounded-2xl border border-slate-800 hover:border-emerald-500/50 transition duration-300">
+                        <div class="text-emerald-500 text-3xl mb-4"><i class="fa-solid fa-wave-square"></i></div>
+                        <h3 class="text-lg font-bold mb-2">Âm thanh thư giãn</h3>
+                        <p class="text-slate-400 text-sm">Thư viện âm thanh nền giúp làm dịu tâm trí trước giờ ngủ.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-auth" class="tab-content hidden max-w-md mx-auto py-12">
+                <div id="auth-login-box" class="glass p-8 rounded-3xl space-y-6">
+                    <div class="text-center">
+                        <h2 class="text-2xl font-bold text-white">Chào mừng bạn trở lại</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="login-email" class="block text-xs uppercase text-slate-400 mb-2 font-semibold">Email address</label>
+                            <input type="email" id="login-email" placeholder="example@sleepwise.io" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blueSoft">
+                        </div>
+                        <div>
+                            <label for="login-password" class="block text-xs uppercase text-slate-400 mb-2 font-semibold">Password</label>
+                            <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blueSoft" onkeypress="if(event.key === 'Enter') handleLoginSubmit()">
+                        </div>
+                    </div>
+                    <button type="button" class="w-full bg-gradient-to-r from-purpleSoft to-blueSoft py-3 rounded-xl font-bold" onclick="handleLoginSubmit()"><i class="fa-solid fa-right-to-bracket mr-2"></i>Đăng nhập</button>
+                    <div class="flex justify-between text-xs text-slate-400">
+                        <span class="cursor-pointer underline" onclick="showAuthScreen('forgot')" role="button" tabindex="0">Quên mật khẩu?</span>
+                        <span>Chưa có tài khoản? <span class="text-blueSoft cursor-pointer underline" onclick="showAuthScreen('register')" role="button" tabindex="0">Đăng ký ngay</span></span>
+                    </div>
+                    <p class="text-[11px] text-center text-slate-500 border-t border-slate-800 pt-3">Tài khoản demo: <span class="text-slate-400">elena.vu@sleepwise.io</span> / mật khẩu <span class="text-slate-400">123</span></p>
+                </div>
+
+                <div id="auth-register-box" class="glass p-8 rounded-3xl space-y-5 hidden">
+                    <div class="text-center"><h2 class="text-2xl font-bold text-white">Tạo tài khoản mới</h2></div>
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label for="reg-name" class="block uppercase text-slate-400 mb-1.5 font-semibold">Họ và tên</label>
+                            <input type="text" id="reg-name" placeholder="Elena Vũ" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="reg-email" class="block uppercase text-slate-400 mb-1.5 font-semibold">Email address</label>
+                            <input type="email" id="reg-email" placeholder="name@domain.com" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="reg-password" class="block uppercase text-slate-400 mb-1.5 font-semibold">Mật khẩu (tối thiểu 6 ký tự)</label>
+                            <input type="password" id="reg-password" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="reg-password-confirm" class="block uppercase text-slate-400 mb-1.5 font-semibold">Xác nhận mật khẩu</label>
+                            <input type="password" id="reg-password-confirm" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none" onkeypress="if(event.key === 'Enter') handleRegisterSubmit()">
+                        </div>
+                    </div>
+                    <button type="button" class="w-full bg-gradient-to-r from-blueSoft to-purpleSoft py-3 rounded-xl font-bold text-slate-950" onclick="handleRegisterSubmit()"><i class="fa-solid fa-user-plus mr-2"></i>Xác nhận Đăng ký</button>
+                    <p class="text-xs text-center text-slate-400">Đã có tài khoản? <span class="text-blueSoft cursor-pointer underline" onclick="showAuthScreen('login')" role="button" tabindex="0">Đăng nhập</span></p>
+                </div>
+
+                <div id="auth-forgot-box" class="glass p-8 rounded-3xl space-y-5 hidden">
+                    <div class="text-center">
+                        <h2 class="text-2xl font-bold text-white">Đặt lại mật khẩu</h2>
+                        <p class="text-xs text-amber-400 mt-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Đây là bản demo chạy hoàn toàn trên trình duyệt, không có máy chủ gửi email. Nếu email tồn tại, bạn có thể đặt mật khẩu mới ngay tại đây.</p>
+                    </div>
+                    <div class="space-y-3 text-xs">
+                        <div>
+                            <label for="forgot-email" class="block uppercase text-slate-400 mb-1.5 font-semibold">Email đã đăng ký</label>
+                            <input type="email" id="forgot-email" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="forgot-new-password" class="block uppercase text-slate-400 mb-1.5 font-semibold">Mật khẩu mới (tối thiểu 6 ký tự)</label>
+                            <input type="password" id="forgot-new-password" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-white focus:outline-none">
+                        </div>
+                    </div>
+                    <button type="button" class="w-full bg-gradient-to-r from-purpleSoft to-blueSoft py-3 rounded-xl font-bold" onclick="handleForgotPassword()"><i class="fa-solid fa-key mr-2"></i>Đặt lại mật khẩu</button>
+                    <p class="text-xs text-center text-slate-400"><span class="text-blueSoft cursor-pointer underline" onclick="showAuthScreen('login')" role="button" tabindex="0">Quay lại đăng nhập</span></p>
+                </div>
+            </section>
+
+            <section id="tab-dashboard" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass p-6 rounded-2xl flex items-center justify-between">
+                        <div class="space-y-2">
+                            <h3 class="text-sm font-semibold uppercase text-slate-400"><i class="fa-solid fa-gauge-high mr-1.5"></i>Sleep Score</h3>
+                            <div class="text-5xl font-extrabold text-white flex items-baseline"><span id="live-sleep-score">--</span><span class="text-lg text-slate-500">/100</span></div>
+                            <p class="text-sm font-medium" id="live-score-label"><i class="fa-solid fa-circle-info mr-1"></i> Chưa có dữ liệu.</p>
+                        </div>
+                        <div class="score-donut" id="live-score-circle" style="background: conic-gradient(#334155 0deg, #334155 360deg);">
+                            <span id="live-score-circle-text" class="text-blueSoft">--%</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 lg:col-span-2">
+                        <div class="glass p-5 rounded-2xl space-y-2">
+                            <div class="text-slate-400 text-xs uppercase block"><i class="fa-solid fa-hourglass-half mr-1.5"></i>Thời gian ngủ trung bình</div>
+                            <div class="text-2xl font-bold text-slate-200" id="live-avg-duration">Chưa có dữ liệu</div>
+                        </div>
+                        <div class="glass p-5 rounded-2xl space-y-2">
+                            <div class="text-slate-400 text-xs uppercase block"><i class="fa-solid fa-calendar-check mr-1.5"></i>Chuỗi ngủ đúng giờ</div>
+                            <div class="text-2xl font-bold text-amber-500" id="live-streak"><i class="fa-solid fa-fire"></i> 0 ngày</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="glass p-6 rounded-2xl space-y-4">
+                        <h3 class="text-base font-bold text-white"><i class="fa-solid fa-chart-line text-blueSoft mr-2"></i>Thống kê chu kỳ giấc ngủ</h3>
+                        <div class="h-64 relative"><canvas id="dashboardMainChart"></canvas></div>
+                        <p id="dashboard-empty-note" class="text-center text-slate-500 text-sm hidden">Chưa có nhật ký nào. Hãy thêm dữ liệu ở tab "Nhật ký" để xem biểu đồ.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-tracker" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass p-6 rounded-2xl space-y-4">
+                        <h3 class="text-base font-bold text-white" id="tracker-form-title"><i class="fa-solid fa-pen-to-square text-blueSoft mr-2"></i>Ghi nhật ký</h3>
+                        <div class="space-y-3 text-sm">
+                            <div>
+                                <label for="log-date" class="block text-slate-400 mb-1">Ngày</label>
+                                <input type="date" id="log-date" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                            </div>
+                            <div>
+                                <label for="log-sleep-time" class="block text-slate-400 mb-1">Giờ bắt đầu đi ngủ</label>
+                                <input type="time" id="log-sleep-time" value="22:45" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                            </div>
+                            <div>
+                                <label for="log-wake-time" class="block text-slate-400 mb-1">Giờ thức dậy</label>
+                                <input type="time" id="log-wake-time" value="06:30" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                            </div>
+                            <button id="tracker-save-btn" type="button" class="w-full bg-blueSoft text-slate-900 font-bold py-2.5 rounded-xl" onclick="addOrUpdateSleepLog()"><i class="fa-solid fa-floppy-disk mr-2"></i>Lưu dữ liệu</button>
+                            <button id="tracker-cancel-btn" type="button" class="w-full border border-slate-700 text-slate-300 font-semibold py-2 rounded-xl hidden" onclick="cancelEditLog()"><i class="fa-solid fa-xmark mr-2"></i>Hủy chỉnh sửa</button>
+                        </div>
+                    </div>
+                    <div class="glass p-6 rounded-2xl lg:col-span-2 space-y-4 overflow-x-auto">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-slate-400">Danh sách nhật ký (Hiện tối đa 7 ngày gần nhất)</h3>
+                        </div>
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-slate-800 text-slate-400">
+                                    <th class="pb-3">Ngày</th>
+                                    <th class="pb-3">Khoảng giờ</th>
+                                    <th class="pb-3">Thời lượng</th>
+                                    <th class="pb-3 text-right">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tracker-table-body" class="text-slate-300 divide-y divide-slate-800/40"></tbody>
+                        </table>
+                        <p id="tracker-empty-note" class="text-center text-slate-500 text-sm py-4 hidden">Chưa có nhật ký giấc ngủ nào. Hãy thêm nhật ký đầu tiên của bạn!</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-ai-analyzer" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="glass p-6 rounded-2xl space-y-4 h-fit">
+                        <h3 class="text-base font-bold text-white"><i class="fa-solid fa-clipboard-question text-blueSoft mr-2"></i>Khảo sát nhanh</h3>
+                        <div class="space-y-3 text-xs">
+                            <div>
+                                <label for="ai-q1" class="block text-slate-400 mb-1">Dùng điện thoại/màn hình trước khi ngủ?</label>
+                                <select id="ai-q1" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                                    <option value="yes">Có, thường xuyên</option>
+                                    <option value="no">Không</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="ai-q2" class="block text-slate-400 mb-1">Có dùng caffeine/trà đặc sau 15h?</label>
+                                <select id="ai-q2" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                                    <option value="yes">Có</option>
+                                    <option value="no">Không</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="ai-q3" class="block text-slate-400 mb-1">Mức độ căng thẳng gần đây?</label>
+                                <select id="ai-q3" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                                    <option value="low">Thấp</option>
+                                    <option value="medium">Trung bình</option>
+                                    <option value="high">Cao</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="ai-q4" class="block text-slate-400 mb-1">Giờ đi ngủ có đều đặn mỗi ngày?</label>
+                                <select id="ai-q4" class="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white">
+                                    <option value="no">Thất thường</option>
+                                    <option value="yes">Khá đều đặn</option>
+                                </select>
+                            </div>
+                            <button type="button" class="w-full bg-purpleSoft text-white font-bold py-2.5 rounded-xl" onclick="triggerAiDiagnosis()"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Phân tích ngay</button>
+                            <div id="ai-diagnosis-result" class="text-slate-300 space-y-2 pt-2"></div>
+                        </div>
+                    </div>
+
+                    <div class="glass p-6 rounded-2xl lg:col-span-2 flex flex-col h-[560px]">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-base font-bold text-white"><i class="fa-solid fa-robot text-purpleSoft mr-2"></i>AI Sleep Advisor</h3>
+                            <button type="button" class="text-[11px] text-slate-400 underline" onclick="toggleAiSettings()"><i class="fa-solid fa-gear mr-1"></i>Cài đặt API key</button>
+                        </div>
+                        <div id="ai-settings-box" class="hidden glass p-3 rounded-xl mb-3 space-y-2 text-[11px]">
+                            <p class="text-slate-400">Nhập API key Gemini <b>của riêng bạn</b> để trò chuyện với Gemini thật. Key chỉ được lưu trong trình duyệt của bạn (localStorage), không gửi cho ai khác ngoài Google. Bỏ trống để dùng cố vấn ngoại tuyến (offline) có sẵn.</p>
+                            <div class="flex gap-2">
+                                <input type="password" id="ai-user-key" placeholder="Dán API key Gemini tại đây" class="flex-grow bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-white">
+                                <button type="button" class="bg-blueSoft text-slate-900 font-bold px-3 rounded-lg" onclick="saveUserApiKey()"><i class="fa-solid fa-floppy-disk mr-1"></i>Lưu</button>
+                                <button type="button" class="border border-slate-700 text-slate-300 px-3 rounded-lg" onclick="clearUserApiKey()"><i class="fa-solid fa-trash mr-1"></i>Xóa</button>
+                            </div>
+                            <p id="ai-key-status" class="text-slate-500"></p>
+                        </div>
+                        <div id="chat-box" class="flex-grow overflow-y-auto space-y-3 text-xs pr-2 mb-4">
+                            <div class="flex gap-2">
+                                <div class="w-7 h-7 bg-purpleSoft rounded-full flex items-center justify-center text-white font-bold text-[10px]">AI</div>
+                                <div class="bg-slate-800/80 rounded-2xl p-3 text-slate-200">Xin chào! Hãy đặt câu hỏi bất kỳ về giấc ngủ.</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 border-t border-slate-800 pt-3">
+                            <input type="text" id="chat-input" maxlength="500" placeholder="Ví dụ: Tại sao tôi ngủ đủ 8 tiếng vẫn thấy mệt mỏi?" class="flex-grow bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purpleSoft" onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                            <button type="button" class="bg-purpleSoft hover:opacity-90 text-white px-4 rounded-xl text-xs font-bold" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="tab-sounds" class="tab-content hidden space-y-6">
+                <div class="glass p-6 rounded-2xl text-center space-y-5 max-w-2xl mx-auto">
+                    <h4 id="player-title" class="text-sm font-bold text-slate-200">Chưa chọn âm thanh</h4>
+                    <audio id="sleep-audio" loop></audio>
+                    <div id="sound-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+                    <div class="flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-volume-low text-slate-400"></i>
+                        <input type="range" id="volume-slider" min="0" max="100" value="80" class="w-40 accent-blueSoft" oninput="setVolume(this.value)" aria-label="Điều chỉnh âm lượng">
+                        <i class="fa-solid fa-volume-high text-slate-400"></i>
+                    </div>
+                    <div>
+                        <button type="button" class="bg-red-500 text-white px-6 py-2 rounded-full font-bold transition hover:scale-105" onclick="stopAllAudio()"><i class="fa-solid fa-stop mr-2"></i>Dừng phát</button>
+                        <button type="button" class="border border-slate-700 text-slate-300 px-6 py-2 rounded-full font-semibold transition hover:scale-105 ml-2" onclick="testAudioBeep()"><i class="fa-solid fa-vial mr-2"></i>Kiểm tra âm thanh (bíp thử)</button>
+                    </div>
+                    <p id="audio-debug-note" class="text-[11px] text-slate-400"></p>
+                    <p class="text-[11px] text-slate-500">* Các bản nhạc trên là file demo minh họa giao diện. Khi triển khai thật, hãy thay bằng file âm thanh thiên nhiên (mưa, sóng biển, white noise) có bản quyền hợp lệ.</p>
+                </div>
+            </section>
+
+            <section id="tab-community" class="tab-content hidden space-y-6 max-w-3xl mx-auto">
+                <div class="glass p-5 rounded-2xl flex gap-2">
+                    <input type="text" id="forum-input" maxlength="500" placeholder="Mẹo ngủ ngon..." class="flex-grow bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs text-white" onkeypress="if(event.key === 'Enter') submitPost()">
+                    <button type="button" class="bg-blueSoft text-slate-900 text-xs font-bold px-4 rounded-xl" onclick="submitPost()"><i class="fa-solid fa-paper-plane mr-1"></i>Đăng</button>
+                </div>
+                <div class="space-y-4" id="community-feed"></div>
+            </section>
+
+            <section id="tab-profile" class="tab-content hidden max-w-2xl mx-auto space-y-6">
+                <div class="p-6 glass rounded-3xl text-center space-y-4">
+                    <h2 class="text-xl font-bold text-white" id="profile-user-name">Người dùng</h2>
+                    <p class="text-xs text-slate-400" id="profile-user-email"></p>
+                    <button type="button" class="bg-red-500/20 text-red-400 border border-red-500/40 px-6 py-2 rounded-xl text-xs" onclick="handleLogout()"><i class="fa-solid fa-right-from-bracket mr-1.5"></i>Đăng xuất</button>
+                </div>
+
+                <div class="p-6 glass rounded-3xl space-y-4">
+                    <h3 class="text-base font-bold text-white"><i class="fa-solid fa-bell text-blueSoft mr-2"></i>Nhắc nhở giờ đi ngủ</h3>
+                    <p class="text-xs text-slate-400">Đặt giờ mục tiêu, SleepWise sẽ gửi thông báo trình duyệt khi đến giờ (yêu cầu giữ tab này mở và cho phép thông báo).</p>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <input type="time" id="bedtime-target" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white text-sm" aria-label="Chọn giờ mục tiêu đi ngủ">
+                        <button type="button" class="bg-purpleSoft text-white font-bold px-4 py-2 rounded-xl text-sm" onclick="enableBedtimeReminder()"><i class="fa-solid fa-bell mr-1.5"></i>Bật nhắc nhở</button>
+                        <button type="button" class="border border-slate-700 text-slate-300 font-semibold px-4 py-2 rounded-xl text-sm" onclick="disableBedtimeReminder()"><i class="fa-solid fa-bell-slash mr-1.5"></i>Tắt</button>
+                    </div>
+                    <p id="reminder-status" class="text-xs text-slate-500">Nhắc nhở đang tắt.</p>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="text-center text-[11px] text-slate-600 py-6">
+            SleepWise · Bản demo minh họa — dữ liệu lưu cục bộ trên trình duyệt của bạn.
+        </footer>
+    </div>
+
+    <script>
+        // ================= TIỆN ÍCH CHUNG =================
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str ?? '';
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'info') {
+            const wrap = document.getElementById('toast-wrap');
+            if(!wrap) return;
+            const colors = { info: 'border-slate-700', error: 'border-red-500/60', success: 'border-emerald-500/60' };
+            const el = document.createElement('div');
+            el.className = `toast glass ${colors[type] || colors.info} border px-4 py-3 rounded-xl text-sm max-w-xs shadow-lg`;
+            el.textContent = message;
+            wrap.appendChild(el);
+            setTimeout(() => { el.remove(); }, 4000);
+        }
+
+        // Tạo định dạng YYYY-MM-DD dựa theo múi giờ địa phương để tránh lỗi lệch ngày của .toISOString()
+        function getLocalDateString(dateObj) {
+            return dateObj.toLocaleDateString('sv-SE'); 
+        }
+
+        async function hashPassword(pw) {
+            try {
+                if (window.crypto && window.crypto.subtle) {
+                    const enc = new TextEncoder().encode(pw);
+                    const buf = await window.crypto.subtle.digest('SHA-256', enc);
+                    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+                }
+            } catch (e) { }
+            let hash = 0;
+            for (let i = 0; i < pw.length; i++) { hash = (hash * 31 + pw.charCodeAt(i)) >>> 0; }
+            return 'fb_' + hash.toString(16);
+        }
+
+        function uid() {
+            return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+        }
+
+        // ================= TRẠNG THÁI CHUNG =================
+        let currentUser = JSON.parse(localStorage.getItem('sleepWiseSession')) || null;
+        let mainChartInstance = null;
+        let editingLogId = null;
+        let currentSoundIndex = null;
+        let reminderInterval = null;
+        let lastReminderDate = localStorage.getItem('sleepWiseLastReminderDate') || null;
+
+        const soundTracks = [
+            { name: 'Mưa rơi nhẹ', icon: '🌧️', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+            { name: 'Sóng biển', icon: '🌊', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+            { name: 'Gió rừng', icon: '🍃', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+            { name: 'Lửa trại', icon: '🔥', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
+        ];
+
+        async function initApp() {
+            if (!localStorage.getItem('sleepWiseUsers')) {
+                const hashed = await hashPassword('123');
+                localStorage.setItem('sleepWiseUsers', JSON.stringify([
+                    { name: 'Elena Vũ', email: 'elena.vu@sleepwise.io', password: hashed }
+                ]));
+            }
+            if (!localStorage.getItem('sleepLogsWise')) {
+                const seedLogs = [
+                    { id: uid(), dateISO: '2026-06-26', dateDisplay: '26/06/2026', sleepTime: '23:00', wakeTime: '06:30', duration: 7.5 },
+                    { id: uid(), dateISO: '2026-06-27', dateDisplay: '27/06/2026', sleepTime: '22:30', wakeTime: '06:15', duration: 7.75 },
+                ];
+                localStorage.setItem('sleepLogsWise', JSON.stringify(seedLogs));
+            }
+
+            renderSoundGrid();
+            updateAuthUi();
+            switchTab('landing');
+
+            const savedTarget = localStorage.getItem('sleepWiseBedtimeTarget');
+            if (savedTarget) document.getElementById('bedtime-target').value = savedTarget;
+            if (localStorage.getItem('sleepWiseReminderOn') === '1') {
+                startReminderLoop();
+                document.getElementById('reminder-status').textContent = 'Nhắc nhở đang bật cho ' + savedTarget + ' mỗi ngày (khi tab này đang mở).';
+            }
+
+            const savedKey = localStorage.getItem('sleepWiseUserGeminiKey');
+            document.getElementById('ai-key-status').textContent = savedKey
+                ? 'Đã lưu API key riêng của bạn trên trình duyệt này.'
+                : 'Chưa có API key — chatbot sẽ dùng cố vấn ngoại tuyến.';
+        }
+        document.addEventListener('DOMContentLoaded', initApp);
+
+        function updateAuthUi() {
+            const mobileBtn = document.getElementById('mobile-menu-btn');
+            if (currentUser) {
+                document.getElementById('nav-auth-btn').classList.add('hidden');
+                document.getElementById('user-profile-btn').classList.remove('hidden');
+                document.getElementById('nav-menu-items').classList.remove('hidden');
+                document.getElementById('nav-user-name').innerText = currentUser.name;
+                document.getElementById('profile-user-name').innerText = currentUser.name;
+                document.getElementById('profile-user-email').innerText = currentUser.email;
+                mobileBtn.classList.remove('hidden');
+            } else {
+                document.getElementById('nav-auth-btn').classList.remove('hidden');
+                document.getElementById('user-profile-btn').classList.add('hidden');
+                document.getElementById('nav-menu-items').classList.add('hidden');
+                mobileBtn.classList.add('hidden');
+                document.getElementById('mobile-menu').classList.add('hidden');
+            }
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(`tab-${tabId}`);
+            if (target) target.classList.remove('hidden');
+            if (tabId === 'dashboard') setTimeout(initDashboardChart, 50);
+            if (tabId === 'tracker') { resetTrackerForm(); renderTrackerTable(); }
+            if (tabId === 'community') renderCommunityFeed();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function checkAuthAndRedirect(tabId) {
+            if (!currentUser) {
+                showAuthScreen('login');
+                showToast('Vui lòng đăng nhập hoặc đăng ký để tiếp tục.');
+            } else {
+                switchTab(tabId);
+            }
+        }
+
+        function showAuthScreen(mode) {
+            switchTab('auth');
+            document.getElementById('auth-login-box').classList.toggle('hidden', mode !== 'login');
+            document.getElementById('auth-register-box').classList.toggle('hidden', mode !== 'register');
+            document.getElementById('auth-forgot-box').classList.toggle('hidden', mode !== 'forgot');
+        }
+
+        // ================= XÁC THỰC =================
+        async function handleLoginSubmit() {
+            const email = document.getElementById('login-email').value.trim();
+            const pass = document.getElementById('login-password').value;
+            if (!email || !pass) return showToast('Vui lòng nhập đầy đủ email và mật khẩu.', 'error');
+
+            const hashedPass = await hashPassword(pass);
+            const users = JSON.parse(localStorage.getItem('sleepWiseUsers')) || [];
+            const matched = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === hashedPass);
+            if (matched) {
+                currentUser = { name: matched.name, email: matched.email };
+                localStorage.setItem('sleepWiseSession', JSON.stringify(currentUser));
+                updateAuthUi();
+                switchTab('dashboard');
+                showToast(`Chào mừng trở lại, ${matched.name}!`, 'success');
+            } else {
+                showToast('Sai email hoặc mật khẩu.', 'error');
+            }
+        }
+
+        async function handleRegisterSubmit() {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const pass = document.getElementById('reg-password').value;
+            const confirmPass = document.getElementById('reg-password-confirm').value;
+
+            if (!name || !email || !pass || !confirmPass) return showToast('Vui lòng điền đủ thông tin!', 'error');
+            if (!/^\S+@\S+\.\S+$/.test(email)) return showToast('Email không hợp lệ.', 'error');
+            if (pass.length < 6) return showToast('Mật khẩu cần tối thiểu 6 ký tự.', 'error');
+            if (pass !== confirmPass) return showToast('Mật khẩu xác nhận không khớp.', 'error');
+
+            let users = JSON.parse(localStorage.getItem('sleepWiseUsers')) || [];
+            if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+                return showToast('Email này đã được đăng ký.', 'error');
+            }
+
+            const hashedPass = await hashPassword(pass);
+            users.push({ name, email, password: hashedPass });
+            localStorage.setItem('sleepWiseUsers', JSON.stringify(users));
+            showToast('Đăng ký thành công! Hãy đăng nhập.', 'success');
+            showAuthScreen('login');
+            document.getElementById('login-email').value = email;
+        }
+
+        async function handleForgotPassword() {
+            const email = document.getElementById('forgot-email').value.trim();
+            const newPass = document.getElementById('forgot-new-password').value;
+            if (!email || !newPass) return showToast('Vui lòng điền đủ thông tin.', 'error');
+            if (newPass.length < 6) return showToast('Mật khẩu mới cần tối thiểu 6 ký tự.', 'error');
+
+            let users = JSON.parse(localStorage.getItem('sleepWiseUsers')) || [];
+            const idx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+            if (idx === -1) return showToast('Không tìm thấy tài khoản với email này.', 'error');
+
+            users[idx].password = await hashPassword(newPass);
+            localStorage.setItem('sleepWiseUsers', JSON.stringify(users));
+            showToast('Đặt lại mật khẩu thành công! Hãy đăng nhập.', 'success');
+            showAuthScreen('login');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('sleepWiseSession');
+            updateAuthUi();
+            switchTab('landing');
+        }
+
+        // ================= NHẬT KÝ GIẤC NGỦ =================
+        function resetTrackerForm() {
+            editingLogId = null;
+            document.getElementById('log-date').value = getLocalDateString(new Date());
+            document.getElementById('log-sleep-time').value = '22:45';
+            document.getElementById('log-wake-time').value = '06:30';
+            document.getElementById('tracker-save-btn').innerHTML = '<i class="fa-solid fa-floppy-disk mr-2"></i>Lưu dữ liệu';
+            document.getElementById('tracker-cancel-btn').classList.add('hidden');
+            document.getElementById('tracker-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-blueSoft mr-2"></i>Ghi nhật ký';
+        }
+
+        function cancelEditLog() { resetTrackerForm(); }
+
+        function addOrUpdateSleepLog() {
+            const dateVal = document.getElementById('log-date').value;
+            const sleepTime = document.getElementById('log-sleep-time').value;
+            const wakeTime = document.getElementById('log-wake-time').value;
+            if (!dateVal || !sleepTime || !wakeTime) return showToast('Vui lòng điền đủ ngày và mốc thời gian!', 'error');
+            if (sleepTime === wakeTime) return showToast('Giờ đi ngủ và giờ thức dậy không được trùng nhau.', 'error');
+
+            let [sHour, sMin] = sleepTime.split(':').map(Number);
+            let [wHour, wMin] = wakeTime.split(':').map(Number);
+            let start = new Date(2000, 0, 1, sHour, sMin);
+            let end = new Date(2000, 0, 1, wHour, wMin);
+            if (end <= start) end.setDate(end.getDate() + 1); 
+
+            let durationHours = parseFloat(((end - start) / (1000 * 60 * 60)).toFixed(2));
+            if (durationHours > 16) {
+                return showToast('Thời lượng > 16 giờ, vui lòng kiểm tra lại giờ nhập.', 'error');
+            }
+
+            const [y, m, d] = dateVal.split('-');
+            const dateDisplay = `${d}/${m}/${y}`;
+
+            let logs = JSON.parse(localStorage.getItem('sleepLogsWise')) || [];
+
+            if (editingLogId) {
+                const idx = logs.findIndex(l => l.id === editingLogId);
+                if (idx !== -1) {
+                    logs[idx] = { ...logs[idx], dateISO: dateVal, dateDisplay, sleepTime, wakeTime, duration: durationHours };
+                }
+                showToast('Đã cập nhật nhật ký!', 'success');
+            } else {
+                const existingSameDay = logs.findIndex(l => l.dateISO === dateVal);
+                const entry = { id: uid(), dateISO: dateVal, dateDisplay, sleepTime, wakeTime, duration: durationHours };
+                if (existingSameDay !== -1) {
+                    logs[existingSameDay] = entry;
+                    showToast(`Đã ghi đè nhật ký ngày ${dateDisplay}. Thời lượng: ${durationHours} giờ.`, 'success');
+                } else {
+                    logs.push(entry);
+                    showToast(`Đã lưu nhật ký! Thời lượng: ${durationHours} giờ.`, 'success');
+                }
+            }
+
+            localStorage.setItem('sleepLogsWise', JSON.stringify(logs));
+            resetTrackerForm();
+            renderTrackerTable();
+        }
+
+        function editSleepLog(id) {
+            const logs = JSON.parse(localStorage.getItem('sleepLogsWise')) || [];
+            const log = logs.find(l => l.id === id);
+            if (!log) return;
+            editingLogId = id;
+            document.getElementById('log-date').value = log.dateISO;
+            document.getElementById('log-sleep-time').value = log.sleepTime;
+            document.getElementById('log-wake-time').value = log.wakeTime;
+            document.getElementById('tracker-save-btn').innerHTML = '<i class="fa-solid fa-rotate mr-2"></i>Cập nhật nhật ký';
+            document.getElementById('tracker-cancel-btn').classList.remove('hidden');
+            document.getElementById('tracker-form-title').innerHTML = '<i class="fa-solid fa-pen mr-2 text-amber-400"></i>Đang chỉnh sửa';
+        }
+
+        function deleteSleepLog(id) {
+            if (!confirm('Xóa nhật ký này? Hành động không thể hoàn tác.')) return;
+            let logs = JSON.parse(localStorage.getItem('sleepLogsWise')) || [];
+            logs = logs.filter(l => l.id !== id);
+            localStorage.setItem('sleepLogsWise', JSON.stringify(logs));
+            if (editingLogId === id) resetTrackerForm();
+            renderTrackerTable();
+            showToast('Đã xóa nhật ký.', 'success');
+        }
+
+        function renderTrackerTable() {
+            const tbody = document.getElementById('tracker-table-body');
+            const emptyNote = document.getElementById('tracker-empty-note');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            const logs = (JSON.parse(localStorage.getItem('sleepLogsWise')) || [])
+                .slice()
+                .sort((a, b) => (a.dateISO < b.dateISO ? 1 : -1));
+
+            emptyNote.classList.toggle('hidden', logs.length > 0);
+
+            // UX: Giới hạn chỉ hiển thị 7 ngày gần nhất trên UI bảng
+            const limitedLogs = logs.slice(0, 7);
+
+            limitedLogs.forEach(log => {
+                tbody.innerHTML += `<tr>
+                    <td class="py-3">${escapeHtml(log.dateDisplay)}</td>
+                    <td class="py-3">${escapeHtml(log.sleepTime)} - ${escapeHtml(log.wakeTime)}</td>
+                    <td class="py-3 text-blueSoft font-semibold">${log.duration} giờ</td>
+                    <td class="py-3 text-right space-x-2 whitespace-nowrap">
+                        <button type="button" class="text-slate-400 hover:text-blueSoft" onclick="editSleepLog('${log.id}')" aria-label="Sửa nhật ký ngày ${log.dateDisplay}"><i class="fa-solid fa-pen"></i></button>
+                        <button type="button" class="text-slate-400 hover:text-red-400" onclick="deleteSleepLog('${log.id}')" aria-label="Xóa nhật ký ngày ${log.dateDisplay}"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+        }
+
+        // ================= DASHBOARD LÀM MỚI CHUẨN MÚI GIỜ =================
+        function computeStreak(logs) {
+            if (logs.length === 0) return 0;
+            const byDate = new Map(logs.map(l => [l.dateISO, l]));
+            let streak = 0;
+            
+            // Fix Timezone Bug: Lấy ngày hôm nay chuẩn theo giờ local Việt Nam thay vì UTC (.toISOString)
+            let cursor = new Date();
+            let todayKey = getLocalDateString(cursor);
+
+            if (!byDate.has(todayKey)) {
+                cursor.setDate(cursor.getDate() - 1);
+            }
+            while (true) {
+                const key = getLocalDateString(cursor);
+                const log = byDate.get(key);
+                if (log && log.duration >= 6 && log.duration <= 10) {
+                    streak++;
+                    cursor.setDate(cursor.getDate() - 1);
+                } else {
+                    break;
+                }
+            }
+            return streak;
+        }
+
+        function computeSleepScore(logs) {
+            if (logs.length === 0) return null;
+            const avg = logs.reduce((s, l) => s + l.duration, 0) / logs.length;
+            const durationScore = Math.max(0, Math.min(100, 100 - Math.abs(7.5 - avg) * 15));
+
+            const sleepMinutes = logs.map(l => {
+                const [h, m] = l.sleepTime.split(':').map(Number);
+                return h * 60 + m;
+            });
+            const meanMin = sleepMinutes.reduce((s, v) => s + v, 0) / sleepMinutes.length;
+            const variance = sleepMinutes.reduce((s, v) => s + Math.pow(v - meanMin, 2), 0) / sleepMinutes.length;
+            const stdev = Math.sqrt(variance);
+            const consistencyScore = Math.max(0, Math.min(100, 100 - stdev / 2));
+
+            const score = Math.round(durationScore * 0.6 + consistencyScore * 0.4);
+            return { score: Math.max(0, Math.min(100, score)), avg };
+        }
+
+        function initDashboardChart() {
+            const canvas = document.getElementById('dashboardMainChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const logs = (JSON.parse(localStorage.getItem('sleepLogsWise')) || [])
+                .slice()
+                .sort((a, b) => (a.dateISO > b.dateISO ? 1 : -1));
+
+            document.getElementById('dashboard-empty-note').classList.toggle('hidden', logs.length > 0);
+
+            const result = computeSleepScore(logs);
+            const scoreLabelEl = document.getElementById('live-score-label');
+            const circleEl = document.getElementById('live-score-circle');
+            const circleTextEl = document.getElementById('live-score-circle-text');
+
+            if (result) {
+                const { score, avg } = result;
+                const hours = Math.floor(avg);
+                const minutes = Math.round((avg - hours) * 60);
+                document.getElementById('live-avg-duration').innerText = `${hours} giờ ${minutes} phút`;
+                document.getElementById('live-sleep-score').innerText = score;
+                circleTextEl.innerText = `${score}%`;
+
+                let color = '#38BDF8', label = 'Giấc ngủ khá tốt.', icon = 'circle-check', labelColor = 'text-blueSoft';
+                if (score >= 85) { color = '#34D399'; label = 'Giấc ngủ rất tốt.'; labelColor = 'text-emerald-400'; }
+                else if (score < 50) { color = '#F87171'; label = 'Cần cải thiện giấc ngủ.'; icon = 'triangle-exclamation'; labelColor = 'text-red-400'; }
+                else if (score < 70) { color = '#FBBF24'; label = 'Giấc ngủ ở mức trung bình.'; icon = 'circle-info'; labelColor = 'text-amber-400'; }
+
+                circleEl.style.background = `conic-gradient(${color} ${score * 3.6}deg, #334155 0deg)`;
+                scoreLabelEl.className = `text-sm font-medium ${labelColor}`;
+                scoreLabelEl.innerHTML = `<i class="fa-solid fa-${icon} mr-1"></i> ${label}`;
+            } else {
+                document.getElementById('live-avg-duration').innerText = 'Chưa có dữ liệu';
+                document.getElementById('live-sleep-score').innerText = '--';
+                circleTextEl.innerText = '--%';
+            }
+
+            const streak = computeStreak(logs);
+            document.getElementById('live-streak').innerHTML = `<i class="fa-solid fa-fire"></i> ${streak} ngày`;
+
+            if (mainChartInstance) mainChartInstance.destroy();
+            mainChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: logs.map(l => l.dateDisplay),
+                    datasets: [{
+                        label: 'Thời lượng ngủ',
+                        data: logs.map(l => l.duration),
+                        borderColor: '#38BDF8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: '#1E293B' }, title: { display: true, text: 'Thời lượng (Giờ)', color: '#64748B' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ================= ÂM THANH THƯ GIÃN =================
+        function renderSoundGrid() {
+            const grid = document.getElementById('sound-grid');
+            grid.innerHTML = soundTracks.map((t, i) => `
+                <button type="button" class="sound-card glass border border-slate-800 rounded-xl p-4 text-sm font-semibold hover:border-blueSoft/60 transition" onclick="playBuiltInAudio(${i})">
+                    <div class="text-2xl mb-2" aria-hidden="true">${t.icon}</div>${escapeHtml(t.name)}
+                </button>`).join('');
+        }
+
+        function setVolume(val) {
+            document.getElementById('sleep-audio').volume = val / 100;
+        }
+
+        function testAudioBeep() {
+            const note = document.getElementById('audio-debug-note');
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.frequency.value = 440;
+                gain.gain.value = 0.2;
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                setTimeout(() => { osc.stop(); ctx.close(); }, 400);
+                note.className = 'text-[11px] text-slate-400';
+                note.textContent = 'Vừa phát 1 tiếng bíp ngắn. Nếu bạn KHÔNG nghe thấy, vấn đề nằm ở âm lượng thiết bị/trình duyệt — không phải lỗi của ứng dụng.';
+            } catch (e) {
+                note.className = 'text-[11px] text-red-400';
+                note.textContent = 'Trình duyệt không hỗ trợ Web Audio API để kiểm tra.';
+            }
+        }
+
+        function playBuiltInAudio(index) {
+            const track = soundTracks[index];
+            const audio = document.getElementById('sleep-audio');
+            const note = document.getElementById('audio-debug-note');
+            note.className = 'text-[11px] text-slate-500';
+            note.textContent = 'Đang tải âm thanh...';
+
+            audio.onerror = () => {
+                note.className = 'text-[11px] text-red-400';
+                note.textContent = 'Không tải được file âm thanh (do chặn domain mạng hoặc file hết hạn). Hãy thử "Kiểm tra âm thanh (bíp thử)" để rà soát lỗi.';
+            };
+            audio.oncanplay = () => { if (note.textContent === 'Đang tải âm thanh... ') note.textContent = ''; };
+
+            audio.src = track.url;
+            audio.play().then(() => {
+                document.getElementById('player-title').innerText = 'Đang phát: ' + track.name;
+            }).catch(err => {
+                note.className = 'text-[11px] text-red-400';
+                note.textContent = 'Trình duyệt chặn phát: ' + err.message;
+                showToast('Không thể phát âm thanh: ' + err.message, 'error');
+            });
+
+            currentSoundIndex = index;
+            document.querySelectorAll('.sound-card').forEach((el, i) => el.classList.toggle('active', i === index));
+        }
+
+        // Gốc code bị thiếu logic tắt class active khi dừng
+        function stopAllAudio() {
+            const audio = document.getElementById('sleep-audio');
+            audio.pause();
+            audio.currentTime = 0;
+            document.getElementById('player-title').innerText = 'Đã dừng phát';
+            document.getElementById('audio-debug-note').textContent = '';
+            currentSoundIndex = null;
+            document.querySelectorAll('.sound-card').forEach(el => el.classList.remove('active'));
+        }
+
+        // ================= CỘNG ĐỒNG =================
+        function renderCommunityFeed() {
+            const feed = document.getElementById('community-feed');
+            if (!feed) return;
+            const posts = JSON.parse(localStorage.getItem('sleepWisePosts')) || [
+                { id: 'system-1', name: 'Hệ thống', content: 'Chào mừng mọi người đến với diễn đàn SleepWise! Chia sẻ câu chuyện giấc ngủ của bạn tại đây.', time: '' }
+            ];
+            feed.innerHTML = posts.map(p => `
+                <div class="glass p-4 rounded-xl space-y-1">
+                    <div class="flex justify-between items-center">
+                        <div class="text-xs font-semibold text-blueSoft">💬 ${escapeHtml(p.name)}</div>
+                        <div class="flex items-center gap-2">
+                            ${p.time ? `<span class="text-[10px] text-slate-500">${escapeHtml(p.time)}</span>` : ''}
+                            ${currentUser && p.name === currentUser.name ? `<button type="button" class="text-slate-500 hover:text-red-400 text-xs" onclick="deletePost('${p.id}')" aria-label="Xóa bài viết"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </div>
+                    </div>
+                    <p class="text-slate-300 text-sm">${escapeHtml(p.content)}</p>
+                </div>`).join('');
+        }
+
+        function submitPost() {
+            if (!currentUser) return showToast('Vui lòng đăng nhập để đăng bài.', 'error');
+            const input = document.getElementById('forum-input');
+            const content = input.value.trim();
+            if (!content) return showToast('Nội dung trống!', 'error');
+
+            const posts = JSON.parse(localStorage.getItem('sleepWisePosts')) || [];
+            posts.unshift({
+                id: uid(),
+                name: currentUser.name,
+                content,
+                time: new Date().toLocaleString('vi-VN')
+            });
+            localStorage.setItem('sleepWisePosts', JSON.stringify(posts));
+            input.value = '';
+            renderCommunityFeed();
+        }
+
+        function deletePost(id) {
+            if (!confirm('Xóa bài viết này?')) return;
+            let posts = JSON.parse(localStorage.getItem('sleepWisePosts')) || [];
+            posts = posts.filter(p => p.id !== id);
+            localStorage.setItem('sleepWisePosts', JSON.stringify(posts));
+            renderCommunityFeed();
+        }
+
+        // ================= AI ANALYZER: CẢI THIỆN SỰ KIỆN CUỘN TRANG =================
+        function triggerAiDiagnosis() {
+            const usesPhone = document.getElementById('ai-q1').value === 'yes';
+            const usesCaffeine = document.getElementById('ai-q2').value === 'yes';
+            const stress = document.getElementById('ai-q3').value;
+            const irregular = document.getElementById('ai-q4').value === 'no';
+
+            const tips = [];
+            if (usesPhone) tips.push('Dùng điện thoại/màn hình sát giờ ngủ làm ức chế melatonin — hãy tắt thiết bị hoặc bật chế độ lọc ánh sáng xanh ít nhất 30 phút trước khi ngủ.');
+            if (usesCaffeine) tips.push('Caffeine sau 15h có thể tồn tại trong cơ thể 6-8 giờ, ảnh hưởng đến khả năng đi vào giấc ngủ sâu — cân nhắc chuyển sang trà thảo mộc buổi chiều.');
+            if (stress === 'high') tips.push('Mức căng thẳng cao là nguyên nhân phổ biến gây khó ngủ — thử hít thở sâu, viết nhật ký hoặc thiền 10 phút trước khi ngủ.');
+            else if (stress === 'medium') tips.push('Căng thẳng ở mức trung bình vẫn có thể ảnh hưởng đến giấc ngủ — hãy dành vài phút thư giãn trước khi lên giường.');
+            if (irregular) tips.push('Giờ ngủ không đều đặn làm rối loạn nhịp sinh học — hãy cố gắng đi ngủ và thức dậy cùng một khung giờ mỗi ngày, kể cả cuối tuần.');
+
+            if (tips.length === 0) tips.push('Thói quen của bạn hiện khá tốt! Hãy duy trì giờ ngủ đều đặn và tiếp tục theo dõi trong tab Nhật ký để nhận phân tích chính xác hơn theo thời gian.');
+
+            const resDiv = document.getElementById('ai-diagnosis-result');
+            resDiv.innerHTML = tips
+                .map(t => `<div class="bg-slate-800/60 rounded-xl p-3 text-xs flex gap-2"><i class="fa-solid fa-lightbulb text-amber-400 mt-0.5" aria-hidden="true"></i><span>${escapeHtml(t)}</span></div>`)
+                .join('');
+            
+            // UX Feature: Tự động cuộn mượt xuống khu vực hiển thị kết quả tư vấn khảo sát
+            setTimeout(() => {
+                resDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 80);
+        }
+
+        // ================= AI CHAT =================
+        function toggleAiSettings() {
+            document.getElementById('ai-settings-box').classList.toggle('hidden');
+        }
+
+        function saveUserApiKey() {
+            const key = document.getElementById('ai-user-key').value.trim();
+            if (!key) return showToast('Vui lòng nhập API key trước khi lưu.', 'error');
+            localStorage.setItem('sleepWiseUserGeminiKey', key);
+            document.getElementById('ai-key-status').textContent = 'Đã lưu API key riêng của bạn trên trình duyệt này.';
+            document.getElementById('ai-user-key').value = '';
+            showToast('Đã lưu API key.', 'success');
+        }
+
+        function clearUserApiKey() {
+            localStorage.removeItem('sleepWiseUserGeminiKey');
+            document.getElementById('ai-key-status').textContent = 'Chưa có API key — chatbot sẽ dùng cố vấn ngoại tuyến.';
+            showToast('Đã xóa API key.', 'success');
+        }
+
+        function offlineSleepAdvice(text) {
+            const t = text.toLowerCase();
+            if (t.includes('mệt') || t.includes('mệt mỏi')) return 'Ngủ đủ giờ nhưng vẫn mệt thường do chất lượng giấc ngủ (thức giấc giữa đêm, thiếu giấc sâu) hơn là số giờ. Hãy thử giữ phòng ngủ tối, mát, yên tĩnh và tránh màn hình trước khi ngủ 30-60 phút.';
+            if (t.includes('khó ngủ') || t.includes('mất ngủ')) return 'Khó vào giấc thường liên quan đến căng thẳng, caffeine hoặc ánh sáng xanh buổi tối. Thử kỹ thuật thở 4-7-8 hoặc viết ra những suy nghĩ đang lo lắng trước khi lên giường.';
+            if (t.includes('thức giấc') || t.includes('tỉnh giấc')) return 'Thức giấc giữa đêm có thể do nhiệt độ phòng, uống nhiều nước trước ngủ, hoặc căng thẳng. Hãy thử giữ phòng ở 24-26°C và hạn chế uống nước 1 giờ trước khi ngủ.';
+            if (t.includes('caffeine') || t.includes('cà phê')) return 'Caffeine có thể ảnh hưởng giấc ngủ trong 6-8 giờ sau khi uống. Nên tránh cà phê, trà đặc, nước tăng lực sau 14-15h.';
+            return 'Cảm ơn câu hỏi của bạn! Một vài nguyên tắc chung giúp ngủ ngon: giữ giờ ngủ/thức đều đặn, tránh màn hình sáng trước khi ngủ, giữ phòng tối và mát, hạn chế caffeine buổi chiều. Bạn có thể thêm API key Gemini riêng ở phần "Cài đặt API key" để trò chuyện chi tiết hơn.';
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const cbox = document.getElementById('chat-box');
+            const userText = input.value.trim();
+            if (!userText) return;
+
+            cbox.innerHTML += `<div class="flex gap-2 justify-end text-xs"><div class="bg-blueSoft text-slate-900 rounded-2xl p-3 max-w-[80%] font-medium">${escapeHtml(userText)}</div></div>`;
+            input.value = '';
+            cbox.scrollTop = cbox.scrollHeight;
+
+            const userKey = localStorage.getItem('sleepWiseUserGeminiKey');
+
+            if (!userKey) {
+                const advice = offlineSleepAdvice(userText);
+                cbox.innerHTML += `<div class="flex gap-2 text-xs"><div class="w-7 h-7 bg-purpleSoft rounded-full flex items-center justify-center text-white font-bold text-[10px]">AI</div><div class="bg-slate-800/80 rounded-2xl p-3 max-w-[80%] text-slate-200">${escapeHtml(advice)} <span class="text-slate-500 italic block mt-1">(cố vấn ngoại tuyến)</span></div></div>`;
+                cbox.scrollTop = cbox.scrollHeight;
+                return;
+            }
+
+            const loadingId = 'ai-loading-' + Date.now();
+            cbox.innerHTML += `<div class="flex gap-2 text-xs" id="${loadingId}"><div class="w-7 h-7 bg-purpleSoft rounded-full flex items-center justify-center text-white font-bold text-[10px]">AI</div><div class="bg-slate-800/80 rounded-2xl p-3 text-slate-400 italic">SleepWise AI đang suy nghĩ...</div></div>`;
+            cbox.scrollTop = cbox.scrollHeight;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(userKey)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: `Bạn là trợ lý tư vấn sức khỏe giấc ngủ SleepWise AI. Trả lời ngắn gọn, súc tích (dưới 4 câu), tiếng Việt: ${userText}` }]
+                        }]
+                    })
+                });
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+                const aiResponse = data.candidates[0].content.parts[0].text;
+                document.getElementById(loadingId)?.remove();
+                cbox.innerHTML += `<div class="flex gap-2 text-xs"><div class="w-7 h-7 bg-purpleSoft rounded-full flex items-center justify-center text-white font-bold text-[10px]">AI</div><div class="bg-slate-800/80 rounded-2xl p-3 max-w-[80%] text-slate-200">${escapeHtml(aiResponse)}</div></div>`;
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                const advice = offlineSleepAdvice(userText);
+                cbox.innerHTML += `<div class="text-amber-400 text-xs p-3 italic bg-amber-500/10 border border-amber-500/20 rounded-2xl max-w-[80%]">Không thể kết nối API key của bạn (${escapeHtml(error.message)}). Dùng cố vấn ngoại tuyến thay thế: ${escapeHtml(advice)}</div>`;
+            }
+            cbox.scrollTop = cbox.scrollHeight;
+        }
+
+        // ================= NHẮC NHỞ GIỜ ĐI NGỦ =================
+        function enableBedtimeReminder() {
+            const target = document.getElementById('bedtime-target').value;
+            if (!target) return showToast('Vui lòng chọn giờ mục tiêu trước.', 'error');
+
+            if (!('Notification' in window)) {
+                showToast('Trình duyệt này không hỗ trợ thông báo (Notification).', 'error');
+                return;
+            }
+            Notification.requestPermission().then(permission => {
+                if (permission !== 'granted') {
+                    showToast('Bạn cần cho phép thông báo để dùng tính năng này.', 'error');
+                    return;
+                }
+                localStorage.setItem('sleepWiseBedtimeTarget', target);
+                localStorage.setItem('sleepWiseReminderOn', '1');
+                startReminderLoop();
+                document.getElementById('reminder-status').textContent = `Nhắc nhở đang bật cho ${target} mỗi ngày (khi tab này đang mở).`;
+                showToast('Đã bật nhắc nhở!', 'success');
+            });
+        }
+
+        function disableBedtimeReminder() {
+            localStorage.setItem('sleepWiseReminderOn', '0');
+            if (reminderInterval) clearInterval(reminderInterval);
+            document.getElementById('reminder-status').textContent = 'Nhắc nhở đang tắt.';
+        }
+
+        function startReminderLoop() {
+            if (reminderInterval) clearInterval(reminderInterval);
+            reminderInterval = setInterval(() => {
+                const target = localStorage.getItem('sleepWiseBedtimeTarget');
+                if (!target) return;
+                const now = new Date();
+                const nowHHMM = now.toTimeString().slice(0, 5);
+                
+                // Fix Timezone Bug ở hệ thống nhắc nhở
+                const todayKey = getLocalDateString(now);
+                if (nowHHMM === target && lastReminderDate !== todayKey) {
+                    if (Notification.permission === 'granted') {
+                        new Notification('🌙 SleepWise', { body: 'Đã đến giờ đi ngủ theo mục tiêu bạn đặt. Chúc bạn ngủ ngon!' });
+                    }
+                    lastReminderDate = todayKey;
+                    localStorage.setItem('sleepWiseLastReminderDate', todayKey);
+                }
+            }, 60 * 1000);
+        }
+    </script>
+</body>
+</html>
