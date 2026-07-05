@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SleepCare – Nền tảng Tối ưu & Cải thiện Giấc ngủ Thông minh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-night: #090D1A;
+            --card-glass: rgba(15, 23, 42, 0.55);
+            --border-glass: rgba(255, 255, 255, 0.07);
+            --text-primary: #F8FAFC;
+            --text-muted: #94A3B8;
+            --cyan-glow: #38BDF8;
+            --purple-glow: #A78BFA;
+            --mint-glow: #34D399;
+            --font-main: 'Inter', sans-serif;
+            --font-title: 'Poppins', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-night);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        .space-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 20% 30%, rgba(124, 58, 237, 0.12) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(56, 189, 248, 0.12) 0%, transparent 40%);
+            z-index: -2;
+        }
+        .stars-container {
+            position: fixed;
+            width: 100%; height: 100%; top: 0; left: 0;
+            z-index: -1; pointer-events: none;
+        }
+        @keyframes pulseStar {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 0.9; transform: scale(1.2); }
+        }
+        .star {
+            position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%;
+            animation: pulseStar 3s infinite ease-in-out;
+        }
+
+        .glass-card {
+            background: var(--card-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(56, 189, 248, 0.2);
+            box-shadow: 0 20px 50px -15px rgba(56, 189, 248, 0.15);
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, var(--cyan-glow), #60A5FA, var(--purple-glow));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: var(--font-title);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #0284C7, #6D28D9);
+            color: white; border: none; border-radius: 14px;
+            padding: 12px 28px; font-weight: 600;
+            box-shadow: 0 4px 20px rgba(109, 40, 217, 0.3);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .gradient-btn:hover {
+            box-shadow: 0 6px 24px rgba(56, 189, 248, 0.4);
+            transform: scale(1.02); color: white; opacity: 0.95;
+        }
+
+        .sidebar {
+            min-height: 100vh;
+            background: rgba(6, 9, 22, 0.75);
+            backdrop-filter: blur(30px);
+            border-right: 1px solid var(--border-glass);
+        }
+        .nav-link-custom {
+            color: var(--text-muted); padding: 14px 20px;
+            display: flex; align-items: center; gap: 14px;
+            border-radius: 16px; text-decoration: none;
+            font-weight: 500; transition: all 0.3s ease;
+            margin-bottom: 6px;
+        }
+        .nav-link-custom:hover, .nav-link-custom.active {
+            background: linear-gradient(90deg, rgba(56, 189, 248, 0.12), rgba(124, 58, 237, 0.04));
+            color: var(--cyan-glow);
+            padding-left: 24px;
+        }
+
+        .breathing-container {
+            position: relative; width: 220px; height: 220px; margin: 40px auto;
+        }
+        .breathing-circle {
+            width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(124,58,237,0.05) 70%);
+            border: 2px solid rgba(56, 189, 248, 0.4);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; font-weight: 600; font-family: var(--font-title);
+            box-shadow: 0 0 50px rgba(56, 189, 248, 0.2);
+            transition: all 4s ease-in-out;
+            white-space: pre-line;
+        }
+        .pulse-wave {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            border: 1px solid var(--purple-glow); border-radius:50%;
+            opacity:0; pointer-events:none;
+        }
+
+        .chat-container {
+            height: 400px; overflow-y: auto;
+            border-radius: 18px; background: rgba(0,0,0,0.3); padding: 20px;
+        }
+        .chat-bubble-ai {
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 18px 18px 18px 4px; padding: 12px 18px; max-width: 80%; align-self: flex-start;
+        }
+        .chat-bubble-user {
+            background: linear-gradient(135deg, #0369A1, #5B21B6);
+            border-radius: 18px 18px 4px 18px; padding: 12px 18px; max-width: 80%; align-self: flex-end;
+        }
+
+        /* Forum Community Style */
+        .post-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px; padding: 20px; margin-bottom: 16px;
+        }
+        .post-avatar {
+            width: 42px; height: 42px; border-radius: 50%; background: var(--purple-glow);
+            display: flex; align-items: center; justify-content: center; font-weight: bold; color: #000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="space-bg"></div>
+<div class="stars-container" id="stars-master"></div>
+
+<!-- HỆ THỐNG AUTHENTICATION (LOGIN/REGISTER) CONTAINER -->
+<div id="auth-container" class="container d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div class="glass-card w-100" style="max-width: 450px;">
+        <div class="text-center mb-4">
+            <span class="fs-1">✨</span>
+            <h2 class="gradient-text fw-bold font-title mt-2">SleepCare Platform</h2>
+            <p class="text-muted small" id="auth-subtitle">Đăng nhập để đồng bộ hóa chỉ số sinh học</p>
+        </div>
+
+        <!-- Form Đăng Nhập -->
+        <div id="login-form">
+            <div class="mb-3">
+                <label class="form-label text-muted small">Tên tài khoản hoặc Email:</label>
+                <input type="text" id="login-username" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="Nhập tài khoản...">
+            </div>
+            <div class="mb-4">
+                <label class="form-label text-muted small">Mật khẩu bảo mật:</label>
+                <input type="password" id="login-password" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="••••••••">
+            </div>
+            <button class="gradient-btn w-100 mb-3" onclick="handleLogin()">Xác thực Đăng nhập</button>
+            <p class="text-center small text-muted m-0">Chưa có tài khoản? <a href="#" class="text-info text-decoration-none" onclick="toggleAuthForm(false)">Đăng ký ngay</a></p>
+        </div>
+
+        <!-- Form Đăng Ký -->
+        <div id="register-form" class="d-none">
+            <div class="mb-3">
+                <label class="form-label text-muted small">Họ và tên hiển thị:</label>
+                <input type="text" id="reg-name" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="Ví dụ: Elena Vũ">
+            </div>
+            <div class="mb-3">
+                <label class="form-label text-muted small">Tên đăng nhập (Username):</label>
+                <input type="text" id="reg-username" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="user123">
+            </div>
+            <div class="mb-4">
+                <label class="form-label text-muted small">Thiết lập mật khẩu:</label>
+                <input type="password" id="reg-password" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="••••••••">
+            </div>
+            <button class="gradient-btn w-100 mb-3" onclick="handleRegister()">Khởi tạo Tài khoản</button>
+            <p class="text-center small text-muted m-0">Đã có tài khoản? <a href="#" class="text-info text-decoration-none" onclick="toggleAuthForm(true)">Đăng nhập</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- GIAO DIỆN HỆ THỐNG CHÍNH (ẨN KHI CHƯA LOGIN) -->
+<div class="container-fluid d-none" id="main-app-container">
+    <div class="row">
+        <!-- SIDEBAR MENU -->
+        <nav class="col-md-3 col-lg-2 d-md-block sidebar p-4 collapse" id="sidebarMenu">
+            <div class="d-flex align-items-center mb-4 pt-2 px-2">
+                <span class="fs-2 me-2">✨</span>
+                <h3 class="m-0 font-bold gradient-text fw-extrabold">SleepCare</h3>
+            </div>
+            <div class="mb-4 px-2 d-flex align-items-center justify-content-between bg-white bg-opacity-5 p-2 rounded-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="bg-info rounded-circle" style="width: 8px; height: 8px;"></div>
+                    <span class="small fw-medium text-white" id="user-display-tag">User</span>
+                </div>
+                <a href="#" class="text-danger small" onclick="handleLogout()"><i class="fa-solid fa-power-off"></i></a>
+            </div>
+            <div>
+                <a href="#" class="nav-link-custom active" onclick="switchView('landing')"><i class="fa-solid fa-home-alt"></i> Trang chủ</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('dashboard')"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('tracker')"><i class="fa-solid fa-bed-pulse"></i> Nhật ký & Chu kỳ</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('community')"><i class="fa-solid fa-users"></i> Phòng Lab Cộng đồng</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('ai')"><i class="fa-solid fa-robot"></i> Trợ lý Giấc ngủ AI</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('breathing')"><i class="fa-solid fa-wind"></i> Điều hòa Hít thở</a>
+                <a href="#" class="nav-link-custom" onclick="switchView('profile')"><i class="fa-solid fa-id-card"></i> Chỉ số sinh học</a>
+            </div>
+        </nav>
+
+        <!-- MAIN AXIS LAYOUT -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-5 py-4">
+            
+            <button class="btn btn-outline-light d-md-none mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+                <i class="fa-solid fa-bars"></i> Menu
+            </button>
+
+            <!-- SECTION 1: TRANG CHỦ -->
+            <section id="view-landing" class="view-section py-4">
+                <div class="glass-card text-center py-5 mb-5">
+                    <span class="badge bg-dark border border-secondary px-3 py-2 rounded-pill text-cyan-glow mb-3"><i class="fa-solid fa-sparkles me-1"></i> Kiến tạo kỷ nguyên giấc ngủ mới</span>
+                    <h1 class="display-4 fw-extrabold mb-3 font-title">Làm chủ giấc ngủ, <span class="gradient-text">Nâng tầm thể trạng</span></h1>
+                    <p class="text-muted col-lg-8 mx-auto fs-5">Hệ thống phân tích tương quan sinh học chuyên sâu giữa giấc ngủ, caffeine, lượng nước và tương tác cộng đồng thời gian thực.</p>
+                    <div class="d-flex justify-content-center gap-3 mt-5">
+                        <button class="gradient-btn" onclick="switchView('dashboard')">Truy cập Dashboard <i class="fa-solid fa-arrow-right ms-2"></i></button>
+                        <button class="btn btn-outline-light px-4 rounded-3" style="border-radius:14px" onclick="switchView('community')">Ghé thăm Cộng đồng</button>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="glass-card text-center h-100">
+                            <div class="text-info fs-2 mb-3"><i class="fa-solid fa-users-viewfinder"></i></div>
+                            <h5 class="fw-bold">Mạng lưới chia sẻ sinh học</h5>
+                            <p class="text-muted small m-0">Trao đổi kinh nghiệm lâm sàng, mẹo ngủ sâu cùng cộng đồng SleepCare chuyên nghiệp.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center h-100">
+                            <div class="text-purple-glow fs-2 mb-3"><i class="fa-solid fa-brain"></i></div>
+                            <h5>Trí tuệ nhân tạo Gemini</h5>
+                            <p class="text-muted small m-0">Đọc trực tiếp dữ liệu thói quen sinh hoạt cá nhân để đưa ra giải pháp y khoa chuẩn xác.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="glass-card text-center h-100">
+                            <div class="text-success fs-2 mb-3"><i class="fa-solid fa-calculator"></i></div>
+                            <h5>Cân bằng chu kỳ sinh học</h5>
+                            <p class="text-muted small m-0">Thuật toán 90 phút đảo ngược giúp thiết lập thời điểm đi ngủ không lo mệt mỏi lúc thức dậy.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: DASHBOARD -->
+            <section id="view-dashboard" class="view-section d-none">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2 class="fw-bold m-0 font-title">Xin chào, <span id="dash-username" class="text-info">User</span> 👋</h2>
+                        <p class="text-muted small m-0" id="dash-date">Hệ thống dữ liệu lâm sàng cá nhân</p>
+                    </div>
+                    <div class="glass-card p-2 px-3 d-flex align-items-center gap-2" style="border-radius:14px">
+                        <span class="text-warning"><i class="fa-solid fa-bolt-lightning"></i></span>
+                        <span class="fw-bold small" id="dash-streak">3 Ngày chuỗi kỷ lục</span>
+                    </div>
+                </div>
+
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <div class="glass-card text-center py-4">
+                            <p class="text-muted small mb-1">Điểm giấc ngủ trung bình</p>
+                            <h2 class="text-info fw-bold m-0" id="dash-score">81 <span class="fs-6 text-muted">/100</span></h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="glass-card text-center py-4">
+                            <p class="text-muted small mb-1">Thời lượng ngủ thực tế</p>
+                            <h2 class="text-purple-glow fw-bold m-0" id="dash-avg-time">7.3 giờ</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="glass-card text-center py-4">
+                            <p class="text-muted small mb-1">Nước uống hôm nay</p>
+                            <h2 class="text-success fw-bold m-0" id="dash-water">500 <span class="fs-6 text-muted">/ 2000 ml</span></h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="glass-card text-center py-4">
+                            <p class="text-danger fw-bold m-0" id="dash-caffeine-box"><span id="dash-caffeine">50</span> mg <span class="fs-6 text-muted d-block" style="font-size:11px!important" id="caffeine-status">An toàn</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-lg-8">
+                        <div class="glass-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold m-0"><i class="fa-solid fa-chart-area text-info me-2"></i>Biểu đồ phân tích đa tương quan sinh học</h5>
+                            </div>
+                            <div style="height: 320px; position: relative;">
+                                <canvas id="mainDashboardChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="glass-card h-100 d-flex flex-column justify-content-between">
+                            <div>
+                                <h5 class="fw-bold mb-3"><i class="fa-solid fa-bolt text-success me-2"></i>Bộ ghi nạp nhanh</h5>
+                                <div class="mb-4">
+                                    <button class="btn btn-outline-info w-100 py-2" style="border-radius:12px" onclick="addQuickWater(250)"><i class="fa-solid fa-glass-water me-2"></i>Thêm 1 ly nước</button>
+                                </div>
+                                <div class="mb-2">
+                                    <button class="btn btn-outline-danger w-100 py-2" style="border-radius:12px" onclick="addQuickCaffeine(100)"><i class="fa-solid fa-mug-hot me-2"></i>Thêm 1 ly Cà phê</button>
+                                </div>
+                            </div>
+                            <div class="p-3 bg-secondary bg-opacity-10 border border-secondary border-opacity-20 rounded-3 mt-3">
+                                <span class="small" style="font-size: 12px; display: block;" id="quick-tip">Đang cấu trúc hóa chỉ số sinh trắc học của bạn...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: NHẬT KÝ -->
+            <section id="view-tracker" class="view-section d-none">
+                <div class="row g-4">
+                    <div class="col-md-5">
+                        <div class="glass-card">
+                            <h4 class="fw-bold mb-3 font-title"><i class="fa-solid fa-circle-plus text-primary me-2"></i>Cập nhật nhật ký giấc ngủ</h4>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Ngày ghi nhận:</label>
+                                <input type="date" id="track-date" class="form-control bg-dark text-white border-secondary rounded-3">
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label class="form-label text-muted small">Bắt đầu lên giường:</label>
+                                    <input type="time" id="track-sleep-time" value="22:30" class="form-control bg-dark text-white border-secondary rounded-3">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label text-muted small">Thức dậy thực tế:</label>
+                                    <input type="time" id="track-wake-time" value="06:00" class="form-control bg-dark text-white border-secondary rounded-3">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label class="form-label text-muted small">Số lần thức giấc:</label>
+                                    <input type="number" id="track-awakenings" value="0" min="0" class="form-control bg-dark text-white border-secondary rounded-3">
+                                </div>
+                                <div class="col">
+                                    <label class="form-label text-muted small">Căng thẳng ban ngày (1-5):</label>
+                                    <input type="number" id="track-stress" value="2" min="1" max="5" class="form-control bg-dark text-white border-secondary rounded-3">
+                                </div>
+                            </div>
+                            <button class="gradient-btn w-100" style="border-radius:12px" onclick="saveSleepLog()"><i class="fa-solid fa-floppy-disk me-2"></i>Lưu nhật ký thực tế</button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-7">
+                        <div class="glass-card mb-4">
+                            <h4 class="fw-bold mb-2 font-title"><i class="fa-solid fa-calculator text-info me-2"></i>Thuật toán chu kỳ giấc ngủ</h4>
+                            <div class="d-flex gap-2 mb-4">
+                                <input type="time" id="cycle-wake-target" value="06:00" class="form-control bg-dark text-white border-secondary rounded-3">
+                                <button class="btn btn-info font-semibold px-4" style="border-radius:12px" onclick="calculateSleepCycles()">Phân tích</button>
+                            </div>
+                            <div id="cycle-results-container" class="row g-2"></div>
+                        </div>
+
+                        <div class="glass-card">
+                            <h5 class="fw-bold mb-3">Lịch sử phân tích lưu trữ</h5>
+                            <div class="table-responsive">
+                                <table class="table table-dark table-hover table-sm text-center align-middle m-0">
+                                    <thead>
+                                        <tr class="text-muted" style="font-size:13px">
+                                            <th>Ngày</th>
+                                            <th>Thời lượng ngủ</th>
+                                            <th>Điểm chất lượng</th>
+                                            <th>Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="sleep-history-tbody" style="font-size:14px"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: PHÒNG LAB CỘNG ĐỒNG (FORUM NEW SECTION) -->
+            <section id="view-community" class="view-section d-none">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="glass-card">
+                            <h4 class="fw-bold mb-3 font-title"><i class="fa-solid fa-pen-fancy text-purple-glow me-2"></i>Tạo bài viết mới</h4>
+                            <div class="mb-3">
+                                <label class="form-label text-muted small">Bạn muốn chia sẻ điều gì?</label>
+                                <textarea id="forum-post-content" rows="4" class="form-control bg-dark text-white border-secondary rounded-3" placeholder="Hôm nay tôi ngủ sâu 8 tiếng nhờ bài tập 4-7-8 cực kỳ hiệu quả..."></textarea>
+                            </div>
+                            <button class="gradient-btn w-100" onclick="createForumPost()"><i class="fa-solid fa-paper-plane me-2"></i> Đăng lên cộng đồng</button>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="glass-card">
+                            <h4 class="fw-bold mb-4 font-title"><i class="fa-solid fa-comments text-cyan-glow me-2"></i>Bảng tin thảo luận giấc ngủ</h4>
+                            <div id="forum-posts-wrapper" style="max-height: 550px; overflow-y: auto; padding-right: 5px;">
+                                <!-- Post items render ở đây -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: AI CONSULTANT -->
+            <section id="view-ai" class="view-section d-none">
+                <div class="glass-card max-w-4xl mx-auto">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold m-0 font-title"><i class="fa-solid fa-robot text-purple-glow me-2"></i>Hệ thống cố vấn giấc ngủ AI</h4>
+                        <button class="btn btn-sm btn-outline-secondary" style="font-size: 11px; border-radius:8px" onclick="promptApiKey()">Cài đặt API Key Gemini</button>
+                    </div>
+                    <div id="chat-box" class="chat-container mb-3 d-flex flex-column gap-3">
+                        <div class="chat-bubble-ai">
+                            Xin chào! Tôi là Trợ lý Giấc ngủ AI. Tôi đã sẵn sàng phân tích các chỉ số sinh học của bạn.
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="form-control bg-dark text-white border-secondary py-3" style="border-radius:14px 0 0 14px" placeholder="Nhập câu hỏi...">
+                        <button class="btn btn-primary px-4" style="border-radius:0 14px 14px 0" onclick="sendMessageToGemini()"><i class="fa-solid fa-paper-plane"></i> Gửi</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 6: BREATHING -->
+            <section id="view-breathing" class="view-section d-none">
+                <div class="glass-card max-w-2xl mx-auto text-center py-5">
+                    <h3 class="fw-bold font-title mb-2"><i class="fa-solid fa-circle-notch text-success me-2"></i>Liệu pháp điều hòa nhịp tim 4-7-8</h3>
+                    <div class="breathing-container">
+                        <div class="pulse-wave" id="wave-1"></div>
+                        <div class="breathing-circle" id="breath-ball">Sẵn sàng</div>
+                    </div>
+                    <button class="btn btn-outline-success px-5 py-2 fw-bold" style="border-radius:14px" id="btn-breath-control" onclick="toggleBreathingExercise()">Bắt đầu bài tập</button>
+                </div>
+            </section>
+
+            <!-- SECTION 7: PROFILE -->
+            <section id="view-profile" class="view-section d-none">
+                <div class="glass-card max-w-md mx-auto">
+                    <h4 class="mb-4 text-center gradient-text fw-bold font-title">Hồ sơ trắc học cá nhân</h4>
+                    <div class="mb-4 text-center">
+                        <div class="d-inline-block bg-gradient p-1 rounded-circle border border-info border-2" style="width:70px; height:70px; line-height:60px; font-size:24px">🧬</div>
+                        <h5 id="prof-title-name" class="fw-bold mt-2">User</h5>
+                        <span class="badge bg-secondary bg-opacity-20 text-muted small" id="prof-bmi-badge">BMI: --</span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Họ và tên hiển thị:</label>
+                        <input type="text" id="prof-name" class="form-control bg-dark text-white border-secondary rounded-3">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label class="form-label text-muted small">Chiều cao (cm):</label>
+                            <input type="number" id="prof-height" class="form-control bg-dark text-white border-secondary rounded-3" oninput="calculateBmi()">
+                        </div>
+                        <div class="col">
+                            <label class="form-label text-muted small">Cân nặng (kg):</label>
+                            <input type="number" id="prof-weight" class="form-control bg-dark text-white border-secondary rounded-3" oninput="calculateBmi()">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small">Mục tiêu giấc ngủ (Giờ):</label>
+                        <input type="number" id="prof-goal" class="form-control bg-dark text-white border-secondary rounded-3" min="4" max="12">
+                    </div>
+                    <button class="gradient-btn w-100" style="border-radius:12px" onclick="saveProfileData()">Cập nhật chỉ số sinh học</button>
+                </div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<script>
+    // --- DATABASE ENGINE (LOCAL STORAGE MANAGEMENTS) ---
+    let accounts = JSON.parse(localStorage.getItem('sc_accounts')) || {};
+    let currentSession = JSON.parse(localStorage.getItem('sc_session')) || null;
+    let communityPosts = JSON.parse(localStorage.getItem('sc_posts')) || [
+        { id: 1, author: "Elena Vũ", content: "Mẹo nhỏ cho các bạn thức khuya: Hãy uống 1 cốc nước ấm trước khi nằm tầm 15 phút, nhịp tim sẽ hạ xuống giúp cơ thể dễ vào trạng thái REM hơn.", likes: 12, date: "2026-07-05 21:10" },
+        { id: 2, author: "Minh Quân", content: "Thuật toán tính chu kỳ ngược của ứng dụng chuẩn quá nha, sáng nay thức dậy đúng khung 6:00 không bị uể oải tí nào.", likes: 8, date: "2026-07-06 07:30" }
+    ];
+
+    let userData = {};
+    let sleepLogs = [];
+    let chartInstance = null;
+    let breathingInterval = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        generateStarsBackground();
+        checkAuthSession();
+        document.getElementById('track-date').value = new Date().toISOString().slice(0, 10);
+    });
+
+    function generateStarsBackground() {
+        const container = document.getElementById('stars-master');
+        for (let i = 0; i < 40; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            container.appendChild(star);
+        }
+    }
+
+    // --- AUTHENTICATION INTERFACE LOGIC ---
+    function toggleAuthForm(showLogin) {
+        if(showLogin) {
+            document.getElementById('login-form').classList.remove('d-none');
+            document.getElementById('register-form').classList.add('d-none');
+            document.getElementById('auth-subtitle').innerText = "Đăng nhập để đồng bộ hóa chỉ số sinh học";
+        } else {
+            document.getElementById('login-form').classList.add('d-none');
+            document.getElementById('register-form').classList.remove('d-none');
+            document.getElementById('auth-subtitle').innerText = "Tạo tài khoản nghiên cứu giấc ngủ miễn phí";
+        }
+    }
+
+    function handleRegister() {
+        const name = document.getElementById('reg-name').value.trim();
+        const user = document.getElementById('reg-username').value.trim().toLowerCase();
+        const pass = document.getElementById('reg-password').value.trim();
+
+        if(!name || !user || !pass) return Swal.fire('Lỗi', 'Vui lòng nhập đầy đủ thông tin!', 'error');
+        if(accounts[user]) return Swal.fire('Lỗi', 'Tên đăng nhập đã tồn tại trên hệ thống!', 'error');
+
+        accounts[user] = {
+            password: pass,
+            profile: { name: name, height: 170, weight: 60, sleepGoal: 8, streak: 1, waterToday: 0, caffeineToday: 0 },
+            logs: []
+        };
+        localStorage.setItem('sc_accounts', JSON.stringify(accounts));
+        Swal.fire('Thành công', 'Đăng ký tài khoản hoàn tất! Hãy đăng nhập.', 'success');
+        toggleAuthForm(true);
+    }
+
+    function handleLogin() {
+        const user = document.getElementById('login-username').value.trim().toLowerCase();
+        const pass = document.getElementById('login-password').value.trim();
+
+        if(!accounts[user] || accounts[user].password !== pass) {
+            return Swal.fire('Thất bại', 'Tài khoản hoặc mật khẩu không chính xác!', 'error');
+        }
+
+        currentSession = user;
+        localStorage.setItem('sc_session', JSON.stringify(currentSession));
+        checkAuthSession();
+        Swal.fire({ title: 'Xác thực thành công', text: 'Chào mừng trở lại với SleepCare System', icon: 'success', timer: 1500, showConfirmButton: false });
+    }
+
+    function handleLogout() {
+        currentSession = null;
+        localStorage.removeItem('sc_session');
+        document.getElementById('main-app-container').classList.add('d-none');
+        document.getElementById('auth-container').classList.remove('d-none');
+    }
+
+    function checkAuthSession() {
+        if(currentSession && accounts[currentSession]) {
+            document.getElementById('auth-container').classList.add('d-none');
+            document.getElementById('main-app-container').classList.remove('d-none');
+            
+            userData = accounts[currentSession].profile;
+            sleepLogs = accounts[currentSession].logs || [];
+            
+            document.getElementById('user-display-tag').innerText = userData.name;
+            switchView('landing');
+            updateDashboardUi();
+            renderForumPosts();
+        } else {
+            document.getElementById('main-app-container').classList.add('d-none');
+            document.getElementById('auth-container').classList.remove('d-none');
+            toggleAuthForm(true);
+        }
+    }
+
+    function syncAccountData() {
+        if(currentSession && accounts[currentSession]) {
+            accounts[currentSession].profile = userData;
+            accounts[currentSession].logs = sleepLogs;
+            localStorage.setItem('sc_accounts', JSON.stringify(accounts));
+        }
+    }
+
+    // --- FORUM & COMMUNITY MOTOR ENGINE ---
+    function renderForumPosts() {
+        const wrapper = document.getElementById('forum-posts-wrapper');
+        wrapper.innerHTML = '';
+        
+        communityPosts.slice().reverse().forEach(post => {
+            wrapper.innerHTML += `
+                <div class="post-card">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="post-avatar">${post.author.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <h6 class="m-0 text-white fw-bold">${post.author}</h6>
+                                <span class="text-muted" style="font-size: 11px;">${post.date}</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-link text-decoration-none text-muted" onclick="likeForumPost(${post.id})">
+                            ❤️ <span class="text-info fw-bold">${post.likes}</span> Thả tim
+                        </button>
+                    </div>
+                    <p class="text-secondary small m-0 lh-base">${post.content}</p>
+                </div>
+            `;
+        });
+    }
+
+    function createForumPost() {
+        const content = document.getElementById('forum-post-content').value.trim();
+        if(!content) return Swal.fire('Lỗi trống', 'Nội dung bài chia sẻ không được để trống.', 'warning');
+
+        const now = new Date();
+        const dateString = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+        const newPost = {
+            id: Date.now(),
+            author: userData.name,
+            content: content,
+            likes: 0,
+            date: dateString
+        };
+
+        communityPosts.push(newPost);
+        localStorage.setItem('sc_posts', JSON.stringify(communityPosts));
+        document.getElementById('forum-post-content').value = '';
+        renderForumPosts();
+        showToast('Đã đăng bài chia sẻ thành công!', 'success');
+    }
+
+    function likeForumPost(postId) {
+        const post = communityPosts.find(p => p.id === postId);
+        if(post) {
+            post.likes += 1;
+            localStorage.setItem('sc_posts', JSON.stringify(communityPosts));
+            renderForumPosts();
+        }
+    }
+
+    // --- VIEW EXECUTIVE INTERCHANGER ---
+    function switchView(viewId) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.add('d-none'));
+        document.getElementById(`view-${viewId}`).classList.remove('d-none');
+        
+        document.querySelectorAll('.nav-link-custom').forEach(el => el.classList.remove('active'));
+        const activeNav = Array.from(document.querySelectorAll('.nav-link-custom')).find(el => el.getAttribute('onclick').includes(viewId));
+        if(activeNav) activeNav.classList.add('active');
+
+        if(viewId === 'dashboard') {
+            setTimeout(renderChart, 100);
+            updateDashboardUi();
+        }
+        if(viewId === 'tracker') {
+            renderSleepHistoryTable();
+        }
+        if(viewId === 'community') {
+            renderForumPosts();
+        }
+        if(viewId === 'profile') {
+            document.getElementById('prof-name').value = userData.name;
+            document.getElementById('prof-height').value = userData.height;
+            document.getElementById('prof-weight').value = userData.weight;
+            document.getElementById('prof-goal').value = userData.sleepGoal;
+            calculateBmi();
+        }
+    }
+
+    // --- DASHBOARD TRACK METRICS ---
+    function updateDashboardUi() {
+        document.getElementById('dash-username').innerText = userData.name;
+        document.getElementById('dash-streak').innerText = `${userData.streak} Ngày chuỗi kỷ lục`;
+        document.getElementById('dash-water').innerHTML = `${userData.waterToday} <span class="fs-6 text-muted">/ 2000 ml</span>`;
+        document.getElementById('dash-caffeine').innerText = userData.caffeineToday;
+        
+        const cafStatus = document.getElementById('caffeine-status');
+        if(userData.caffeineToday >= 250) {
+            cafStatus.innerText = 'Quá tải'; cafStatus.className = 'fs-6 text-danger d-block fw-bold';
+            document.getElementById('quick-tip').innerText = 'Hàm lượng caffeine cao có thể chặn đứng chu trình buồn ngủ tự nhiên.';
+        } else {
+            cafStatus.innerText = 'An toàn'; cafStatus.className = 'fs-6 text-success d-block';
+            document.getElementById('quick-tip').innerText = 'Chỉ số nạp tạp chất kích thích cơ thể của bạn đang ở ngưỡng lý tưởng.';
+        }
+
+        if(sleepLogs.length > 0) {
+            let totalScore = sleepLogs.reduce((sum, l) => sum + l.score, 0);
+            let totalDur = sleepLogs.reduce((sum, l) => sum + l.duration, 0);
+            document.getElementById('dash-score').innerHTML = `${Math.round(totalScore/sleepLogs.length)} <span class="fs-6 text-muted">/100</span>`;
+            document.getElementById('dash-avg-time').innerText = `${(totalDur/sleepLogs.length).toFixed(1)} giờ`;
+        } else {
+            document.getElementById('dash-score').innerHTML = `-- <span class="fs-6 text-muted">/100</span>`;
+            document.getElementById('dash-avg-time').innerText = `0 giờ`;
+        }
+    }
+
+    function addQuickWater(amount) {
+        userData.waterToday += amount;
+        syncAccountData();
+        updateDashboardUi();
+        showToast(`Đã cộng ${amount}ml nước!`, 'success');
+    }
+
+    function addQuickCaffeine(amount) {
+        userData.caffeineToday += amount;
+        syncAccountData();
+        updateDashboardUi();
+        if(userData.caffeineToday >= 250) {
+            Swal.fire('Cảnh báo hệ thống', 'Caffeine vượt ngưỡng khuyến nghị an toàn cho giấc ngủ ngon!', 'warning');
+        } else {
+            showToast(`Đã ghi nhận +${amount}mg Caffeine`, 'info');
+        }
+    }
+
+    function showToast(msg, icon) {
+        Swal.fire({ text: msg, icon: icon, toast: true, position: 'top-end', showConfirmButton: false, timer: 1200 });
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('mainDashboardChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+
+        let displayLogs = sleepLogs.length > 0 ? sleepLogs : [
+            { date: 'Bản mẫu 1', duration: 7, score: 75, caffeine: 100 },
+            { date: 'Bản mẫu 2', duration: 8, score: 90, caffeine: 50 }
+        ];
+
+        let labels = displayLogs.map(l => l.date.slice(5) || l.date);
+        let durationData = displayLogs.map(l => l.duration);
+        let scoreData = displayLogs.map(l => l.score);
+        let caffeineData = displayLogs.map(l => l.caffeine || 0);
+
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Caffeine (mg)', data: caffeineData, type: 'bar', backgroundColor: 'rgba(239, 68, 68, 0.25)', borderColor: '#EF4444', borderWidth: 1, yAxisID: 'yCaffeine' },
+                    { label: 'Điểm giấc ngủ', data: scoreData, type: 'line', borderColor: '#A78BFA', backgroundColor: 'transparent', pointBackgroundColor: '#A78BFA', tension: 0.3, borderWidth: 3, yAxisID: 'yScore' },
+                    { label: 'Thời lượng (Giờ)', data: durationData, type: 'line', borderColor: '#38BDF8', backgroundColor: 'transparent', pointBackgroundColor: '#38BDF8', borderDash: [5, 5], tension: 0.3, borderWidth: 2, yAxisID: 'yHours' }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94A3B8', font: { family: 'Inter' } } } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#94A3B8' } },
+                    yScore: { type: 'linear', position: 'left', min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#A78BFA' } },
+                    yHours: { type: 'linear', position: 'right', min: 0, max: 12, grid: { display: false }, ticks: { color: '#38BDF8' } },
+                    yCaffeine: { type: 'linear', position: 'right', min: 0, max: 400, grid: { display: false }, ticks: { display: false } }
+                }
+            }
+        });
+    }
+
+    // --- CHU KỲ & ĐẢO NGƯỢC ---
+    function saveSleepLog() {
+        const date = document.getElementById('track-date').value;
+        const sleepTime = document.getElementById('track-sleep-time').value;
+        const wakeTime = document.getElementById('track-wake-time').value;
+        const awakenings = parseInt(document.getElementById('track-awakenings').value);
+        const stress = parseInt(document.getElementById('track-stress').value);
+
+        if(!date || !sleepTime || !wakeTime) return Swal.fire('Thiếu thông tin', 'Vui lòng nhập đầy đủ các mốc thời gian.', 'error');
+
+        let [sH, sM] = sleepTime.split(':').map(Number);
+        let [wH, wM] = wakeTime.split(':').map(Number);
+        let hours = wH - sH + (wM - sM)/60;
+        if (hours <= 0) hours += 24;
+
+        let baseScore = 100 - (Math.abs(userData.sleepGoal - hours) * 15) - (awakenings * 10) - (stress * 5);
+        let finalScore = Math.max(10, Math.min(100, Math.round(baseScore)));
+
+        sleepLogs.push({ date: date, duration: parseFloat(hours.toFixed(1)), score: finalScore, water: userData.waterToday, caffeine: userData.caffeineToday });
+        
+        userData.waterToday = 0;
+        userData.caffeineToday = 0;
+        userData.streak += 1;
+        
+        syncAccountData();
+        Swal.fire('Thành công', `Điểm phân tích giấc ngủ đạt: ${finalScore}/100`, 'success');
+        renderSleepHistoryTable();
+    }
+
+    function renderSleepHistoryTable() {
+        const tbody = document.getElementById('sleep-history-tbody');
+        tbody.innerHTML = '';
+        sleepLogs.slice().reverse().forEach(log => {
+            let statusBadge = log.score >= 80 ? 'bg-success' : (log.score >= 60 ? 'bg-warning' : 'bg-danger');
+            let statusText = log.score >= 80 ? 'Tối ưu' : (log.score >= 60 ? 'Bình thường' : 'Kém');
+            tbody.innerHTML += `<tr>
+                <td>${log.date}</td>
+                <td class="text-info fw-bold">${log.duration} giờ</td>
+                <td><span class="badge ${statusBadge}">${log.score}đ</span></td>
+                <td class="text-muted small">${statusText}</td>
+            </tr>`;
+        });
+    }
+
+    function calculateSleepCycles() {
+        const wakeTime = document.getElementById('cycle-wake-target').value;
+        if(!wakeTime) return;
+        let [h, m] = wakeTime.split(':').map(Number);
+        let targetDate = new Date();
+        targetDate.setHours(h, m, 0, 0);
+
+        const container = document.getElementById('cycle-results-container');
+        container.innerHTML = '';
+
+        for(let cycles = 6; cycles >= 3; cycles--) {
+            let diffMins = (cycles * 90) + 15; 
+            let bedTime = new Date(targetDate.getTime() - diffMins * 60000);
+            let timeString = bedTime.toTimeString().slice(0, 5);
+
+            container.innerHTML += `
+                <div class="col-6">
+                    <div class="p-3 bg-secondary bg-opacity-10 border border-secondary border-opacity-10 rounded-3 text-center">
+                        <div class="fw-bold text-cyan-glow fs-5">${timeString}</div>
+                        <div class="text-muted small" style="font-size:11px">${cycles} chu kỳ (${(cycles * 1.5).toFixed(1)}h ngủ)</div>
+                    </div>
+                </div>`;
+        }
+    }
+
+    // --- GEMINI INTELLIGENCE ASSISTANT ---
+    function promptApiKey() {
+        Swal.fire({ title: 'Cấu hình API Key Gemini', input: 'text', inputPlaceholder: 'Nhập khóa AIzaSy...' }).then(result => {
+            if(result.value) { localStorage.setItem('sc_gemini_key', result.value); Swal.fire('Thành công!', 'Khóa AI đã liên kết.', 'success'); }
+        });
+    }
+
+    async function sendMessageToGemini() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if(!text) return;
+
+        const chatBox = document.getElementById('chat-box');
+        chatBox.innerHTML += `<div class="chat-bubble-user text-white">${text}</div>`;
+        input.value = '';
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        const apiKey = localStorage.getItem('sc_gemini_key');
+        if(!apiKey) {
+            setTimeout(() => { chatBox.innerHTML += `<div class="chat-bubble-ai text-warning">⚠️ Chưa cấu hình API Key Gemini. Vui lòng thiết lập ở phía trên.</div>`; chatBox.scrollTop = chatBox.scrollHeight; }, 400);
+            return;
+        }
+
+        const loadId = 'ai-load-' + Date.now();
+        chatBox.innerHTML += `<div class="chat-bubble-ai text-muted italic" id="${loadId}">Đang phân tích cấu trúc...</div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const contextPrompt = `Bạn là bác sĩ chuyên khoa giấc ngủ SleepCare. Người bệnh tên ${userData.name}, cao ${userData.height}cm, nặng ${userData.weight}kg. Hôm nay họ đã nạp ${userData.caffeineToday}mg caffeine và ${userData.waterToday}ml nước. Họ hỏi: "${text}". Hãy đưa ra phản hồi y khoa ngắn gọn dưới 4 câu, trực diện, dễ hiểu bằng tiếng Việt.`;
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: contextPrompt }] }] })
+            });
+            const data = await response.json();
+            document.getElementById(loadId).remove();
+            if (data.candidates && data.candidates[0].content.parts[0].text) {
+                chatBox.innerHTML += `<div class="chat-bubble-ai">${data.candidates[0].content.parts[0].text}</div>`;
+            } else { throw new Error(); }
+        } catch (err) {
+            document.getElementById(loadId).remove();
+            chatBox.innerHTML += `<div class="chat-bubble-ai text-danger">Lỗi phản hồi hệ thống AI.</div>`;
+        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    // --- BREATHING ENGINE ---
+    function toggleBreathingExercise() {
+        const ball = document.getElementById('breath-ball');
+        const btn = document.getElementById('btn-breath-control');
+        const wave = document.getElementById('wave-1');
+
+        if(breathingInterval) {
+            clearInterval(breathingInterval); breathingInterval = null;
+            ball.innerText = "Sẵn sàng"; ball.style.transform = "scale(1)";
+            btn.innerText = "Bắt đầu bài tập"; wave.style.opacity = "0"; return;
+        }
+
+        btn.innerText = "Dừng bài tập";
+        let step = 0;
+        const runCycle = () => {
+            if(step === 0) { ball.innerText = "HÍT VÀO\n(4s)"; ball.style.transform = "scale(1.35)"; wave.style.opacity = "0.3"; step = 1; setTimeout(runCycle, 4000); }
+            else if (step === 1) { ball.innerText = "GIỮ HƠI\n(7s)"; step = 2; setTimeout(runCycle, 7000); }
+            else { ball.innerText = "THỞ RA\n(8s)"; ball.style.transform = "scale(1)"; wave.style.opacity = "0"; step = 0; setTimeout(runCycle, 8000); }
+        };
+        runCycle(); breathingInterval = true;
+    }
+
+    // --- PROFILE METRICS ---
+    function calculateBmi() {
+        const h = parseInt(document.getElementById('prof-height').value) / 100;
+        const w = parseInt(document.getElementById('prof-weight').value);
+        if(!h || !w) return;
+        document.getElementById('prof-bmi-badge').innerText = `BMI: ${(w / (h * h)).toFixed(1)}`;
+    }
+
+    function saveProfileData() {
+        userData.name = document.getElementById('prof-name').value;
+        userData.height = parseInt(document.getElementById('prof-height').value);
+        userData.weight = parseInt(document.getElementById('prof-weight').value);
+        userData.sleepGoal = parseFloat(document.getElementById('prof-goal').value);
+
+        syncAccountData();
+        document.getElementById('prof-title-name').innerText = userData.name;
+        document.getElementById('user-display-tag').innerText = userData.name;
+        calculateBmi();
+        showToast('Đã lưu thông tin sinh học!', 'success');
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
